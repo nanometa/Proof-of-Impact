@@ -1,0 +1,33 @@
+{
+  "contract_name": "ProofOfImpact",
+  "address": "0xe8edD92871983af27af5bC15edF6A96265e6a689",
+  "network": "studionet",
+  "rpc": "https://studio.genlayer.com/api",
+  "chain_id": 61999,
+  "write_methods": [
+    {
+      "name": "create_task",
+      "args": ["title: str", "description: str", "criteria: str", "reward_points: int"],
+      "returns": "str (task_id)"
+    },
+    {
+      "name": "submit_work",
+      "args": ["task_id: str", "work_url: str", "description: str"],
+      "returns": "str (sub_id)"
+    },
+    {
+      "name": "evaluate_submission",
+      "args": ["sub_id: str"],
+      "returns": "str (JSON result)"
+    }
+  ],
+  "view_methods": [
+    { "name": "get_task", "args": ["task_id: str"], "returns": "str (JSON)" },
+    { "name": "get_submission", "args": ["sub_id: str"], "returns": "str (JSON)" },
+    { "name": "get_score", "args": ["sub_id: str"], "returns": "uint256" },
+    { "name": "get_leaderboard_score", "args": ["address: str"], "returns": "uint256" },
+    { "name": "get_task_count", "args": [], "returns": "uint256" },
+    { "name": "get_submission_count", "args": [], "returns": "uint256" }
+  ],
+  "notes": "GenLayer does NOT use EVM ABI encoding. Use genlayer-js SDK writeContract/readContract with functionName + args array."
+}
