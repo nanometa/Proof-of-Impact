@@ -1,114 +1,195 @@
 <div align="center">
 
+<img src="public/logo.svg" alt="Proof of Impact" width="80" />
+
 # Proof of Impact
 
 **A decentralized work platform on GenLayer where AI validators score contributions on-chain.**
 
+[**🚀 Live Demo**](https://proof-of-impact-pi.vercel.app/) · [**📖 Docs**](#table-of-contents) · [**🔍 Explorer**](https://explorer-bradbury.genlayer.com)
+
+[![Live](https://img.shields.io/badge/Live-proof--of--impact--pi.vercel.app-10b981?style=flat-square&logo=vercel)](https://proof-of-impact-pi.vercel.app/)
 [![Network](https://img.shields.io/badge/Network-Bradbury%20Testnet-8b5cf6?style=flat-square)](https://explorer-bradbury.genlayer.com)
 [![Chain ID](https://img.shields.io/badge/Chain%20ID-4221-3b82f6?style=flat-square)](https://docs.genlayer.com/developers/networks)
-[![License](https://img.shields.io/badge/License-MIT-10b981?style=flat-square)](#license)
+[![GenLayer](https://img.shields.io/badge/Built%20on-GenLayer-f59e0b?style=flat-square)](https://genlayer.com)
+[![License](https://img.shields.io/badge/License-MIT-64748b?style=flat-square)](#license)
 
 </div>
 
 ---
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Live Demo](#live-demo)
+- [Key Features](#key-features)
+- [Tech Stack](#tech-stack)
+- [Network](#network)
+- [Smart Contract](#smart-contract)
+- [Architecture](#architecture)
+- [Getting Started](#getting-started)
+- [Usage Guide](#usage-guide)
+- [Project Structure](#project-structure)
+- [How AI Evaluation Works](#how-ai-evaluation-works)
+- [Design System](#design-system)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
+- [Links](#links)
+
+---
 
 ## Overview
 
-**Proof of Impact** is a permissionless work-bounty dApp built on **GenLayer** — the AI-native blockchain. Anyone can post tasks with evaluation criteria, anyone can submit work, and **AI validators** score the submissions on-chain through GenLayer's Optimistic Democracy consensus.
+**Proof of Impact** is a decentralized application built on the **GenLayer Bradbury Testnet** that turns subjective work evaluation into an on-chain, AI-validated process. Anyone can publish a task with custom criteria, contributors submit their work as a URL, and a network of **AI validators** scores each submission using GenLayer's **Optimistic Democracy** consensus.
 
-No middlemen. No bias. Pure merit, scored by AI, verified on-chain.
+Scores, grades, and detailed feedback are stored on-chain and aggregated into a global **leaderboard** that ranks contributors by cumulative impact points.
+
+This project showcases what GenLayer makes possible: smart contracts that reason over the real world (URLs, prose, subjective criteria) without trusting a single oracle.
+
+---
+
+## Live Demo
+
+> **🌐 Try it now:** **[proof-of-impact-pi.vercel.app](https://proof-of-impact-pi.vercel.app/)**
+
+Connect MetaMask, switch to **Bradbury Testnet** (Chain ID `4221`), grab some test GEN from the [faucet](https://testnet-faucet.genlayer.foundation), and start creating tasks or submitting work. All transactions hit the live contract on Bradbury and are verifiable in the [GenLayer Explorer](https://explorer-bradbury.genlayer.com/address/0xD931392177067735378b26e5EE37851284c19d69).
+
+---
 
 ## Key Features
 
-- **Create Tasks** — Post bounties with title, description, evaluation criteria, and reward points
-- **Submit Work** — Workers submit a URL + description as proof-of-work
-- **AI Evaluation** — GenLayer AI validators score work objectively (0–100) via consensus
-- **Detailed Feedback** — Each evaluation returns a score, grade (A–F), feedback, strengths, improvements, and per-criterion scores
-- **On-Chain Reputation** — Cumulative leaderboard scores stored permanently on the GenLayer chain
-- **Wallet Integration** — Connect via MetaMask (RainbowKit) for identity, while signing happens locally for proper GenLayer "Call" transactions
+- **Task Marketplace** — Publish open tasks with title, description, evaluation criteria, and reward points.
+- **AI-Powered Evaluation** — Submissions are graded on a 0–100 scale by multiple AI validators reaching consensus.
+- **On-Chain Leaderboard** — Cumulative scores are stored per address and ranked globally.
+- **Detailed Feedback** — Every evaluation returns a grade (A/B/C/D/F), strengths, improvements, and criteria-level scores.
+- **Hybrid Wallet Flow** — MetaMask for identity (UX), local GenLayer account for signing (so transactions correctly register as `Call`, not `Send`).
+- **Bloomberg × Web3 Aesthetic** — Dark glassmorphism, monospace typography, animated wave background, neon accents.
+- **Fully Responsive** — Desktop-first but works on tablet and mobile.
+
+---
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| Frontend | React 18, Vite, TailwindCSS |
-| Routing | React Router v6 |
-| Wallet UI | RainbowKit, wagmi, viem |
-| Contract SDK | genlayer-js v1.1.8 |
-| Smart Contract | Python (GenLayer Intelligent Contract) |
-| Animations | Custom SVG wave background, glassmorphism UI |
+| Layer | Technology | Version |
+| --- | --- | --- |
+| **Framework** | React | `18.2.0` |
+| **Build** | Vite | `5.0.0` |
+| **Routing** | React Router | `6.20.0` |
+| **Styling** | TailwindCSS | `3.4.0` |
+| **GenLayer SDK** | genlayer-js | `1.1.8` |
+| **Wallet (Identity)** | wagmi + viem | `2.19.5` / `2.50.4` |
+| **Wallet UI** | RainbowKit | `2.2.11` |
+| **Data** | TanStack Query | `5.100.11` |
+| **Smart Contract** | Python (GenLayer) | latest |
+| **Deployment** | Vercel | — |
 
+---
 
 ## Network
 
+The dApp talks to a single live contract on the **GenLayer Bradbury Testnet**.
+
 | Field | Value |
-|-------|-------|
-| Contract Address | `0xD931392177067735378b26e5EE37851284c19d69` |
-| Network | GenLayer Bradbury Testnet |
-| Chain ID | `4221` |
-| RPC | `https://rpc-bradbury.genlayer.com` |
-| Explorer | [explorer-bradbury.genlayer.com](https://explorer-bradbury.genlayer.com) |
-| Faucet | [testnet-faucet.genlayer.foundation](https://testnet-faucet.genlayer.foundation) |
+| --- | --- |
+| **Chain Name** | Bradbury Testnet |
+| **Chain ID** | `4221` |
+| **Currency** | `GEN` |
+| **RPC URL** | `https://rpc-bradbury.genlayer.com` |
+| **Explorer** | [explorer-bradbury.genlayer.com](https://explorer-bradbury.genlayer.com) |
+| **Faucet** | [testnet-faucet.genlayer.foundation](https://testnet-faucet.genlayer.foundation) |
+| **Contract Address** | [`0xD931392177067735378b26e5EE37851284c19d69`](https://explorer-bradbury.genlayer.com/address/0xD931392177067735378b26e5EE37851284c19d69) |
 
-## Smart Contract Methods
+---
 
-### Write (transactions)
+## Smart Contract
 
-```python
-create_task(title: str, description: str, criteria: str, reward_points: int) -> str
-submit_work(task_id: str, work_url: str, description: str) -> str
-evaluate_submission(sub_id: str) -> str  # triggers AI evaluation (~30-90s)
-```
+The contract is written in Python using the GenLayer SDK and lives at [`contracts/proof_of_impact.py`](contracts/proof_of_impact.py).
 
-### Read (no gas)
+### Write methods
 
 ```python
-get_task(task_id: str) -> str           # JSON
-get_submission(sub_id: str) -> str      # JSON
-get_score(sub_id: str) -> int           # 0-100
-get_leaderboard_score(address: str) -> int
-get_task_count() -> int
-get_submission_count() -> int
+@gl.public.write
+def create_task(title, description, criteria, reward_points) -> str
+# Publishes a new task. Returns task_id like "task-0".
+
+@gl.public.write
+def submit_work(task_id, work_url, description) -> str
+# Attaches a submission to an open task. Returns sub_id like "sub-0".
+
+@gl.public.write
+def evaluate_submission(sub_id) -> str
+# Triggers AI evaluation via gl.eq_principle.prompt_comparative.
+# Returns JSON with score, grade, feedback, strengths, improvements.
 ```
 
-The full Python contract is in [`contracts/proof_of_impact.py`](./contracts/proof_of_impact.py).
+### Read methods
+
+```python
+@gl.public.view
+def get_task(task_id) -> str            # JSON of the task
+def get_submission(sub_id) -> str       # JSON of the submission
+def get_score(sub_id) -> u256           # 0-100 score
+def get_leaderboard_score(address) -> u256  # cumulative points
+def get_task_count() -> u256
+def get_submission_count() -> u256
+```
+
+### AI evaluation core
+
+```python
+def evaluate():
+    return gl.nondet.exec_prompt(
+        f"Evaluate this work: ... Return JSON {{score, grade, feedback, ...}}"
+    )
+
+result_json = gl.eq_principle.prompt_comparative(
+    evaluate,
+    principle="score within 5 points, grade must match"
+)
+```
+
+The `prompt_comparative` call asks multiple validator nodes to run the same prompt independently. The **Equivalence Principle** then merges their outputs into a single deterministic result that the chain can finalize.
+
+---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  User Interface (React + Vite)                          │
-│  ├── RainbowKit (wallet identity)                       │
-│  └── Pages: Home, Task, Submit, Evaluate, Leaderboard   │
-└────────────┬────────────────────────────────────────────┘
-             │
-             ▼
-┌─────────────────────────────────────────────────────────┐
-│  genlayer-js SDK                                        │
-│  ├── createAccount() → local signing                    │
-│  ├── writeContract() → eth_sendRawTransaction (Call)    │
-│  └── readContract() → eth_call                          │
-└────────────┬────────────────────────────────────────────┘
-             │
-             ▼
-┌─────────────────────────────────────────────────────────┐
-│  GenLayer Bradbury Testnet                              │
-│  ├── ProofOfImpact Contract                             │
-│  └── AI Validators (Optimistic Democracy)               │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                       React + Vite UI                        │
+│   LandingPage · HomePage · TaskPage · SubmissionPage         │
+│   CreateTaskPage · SubmitWorkPage · LeaderboardPage          │
+└───────────┬──────────────────────────────────┬───────────────┘
+            │                                  │
+            │ identity (display address)       │ contract reads/writes
+            ▼                                  ▼
+   ┌────────────────────┐           ┌─────────────────────────┐
+   │ MetaMask (wagmi /  │           │  genlayer-js client      │
+   │ RainbowKit)        │           │  + createAccount()       │
+   └────────────────────┘           └────────────┬────────────┘
+                                                 │
+                                                 ▼
+                              ┌────────────────────────────────┐
+                              │ GenLayer Bradbury Testnet      │
+                              │ Chain ID 4221                  │
+                              │ ProofOfImpact.py contract      │
+                              │ (AI validator network)         │
+                              └────────────────────────────────┘
 ```
 
-**Why hybrid signing?** GenLayer requires `eth_sendRawTransaction` for "Call" type transactions. Browser wallets like MetaMask send `eth_sendTransaction` which GenLayer interprets as plain transfers. We use MetaMask for **identity display only** while writes are signed locally via `createAccount()` → producing proper GenLayer "Call" transactions.
+**Why two wallets?** GenLayer routes transactions as either `Send` (plain transfer) or `Call` (contract execution). MetaMask's signer was producing `Send` envelopes, so the app keeps MetaMask for **identity display** and uses a locally generated GenLayer account from `createAccount()` to **sign every contract call**. The user always sees their own MetaMask address in the navbar.
 
+---
 
 ## Getting Started
 
 ### Prerequisites
 
-- **Node.js** v18 or higher
-- A **Web3 wallet** (MetaMask recommended)
-- GEN testnet tokens from the [Bradbury faucet](https://testnet-faucet.genlayer.foundation)
+- Node.js `18+`
+- npm or pnpm
+- MetaMask (for identity / address display)
+- A small amount of test GEN from the [Bradbury faucet](https://testnet-faucet.genlayer.foundation)
 
 ### Installation
 
@@ -116,10 +197,15 @@ The full Python contract is in [`contracts/proof_of_impact.py`](./contracts/proo
 git clone https://github.com/nanometa/Proof-of-Impact.git
 cd Proof-of-Impact
 npm install
+```
+
+### Run locally
+
+```bash
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+The dev server starts at `http://localhost:5173`.
 
 ### Build for production
 
@@ -128,107 +214,154 @@ npm run build
 npm run preview
 ```
 
-## Usage
+The production bundle is emitted to `dist/`.
 
-### 1. Create a Task
+---
 
-Navigate to **`/create`**, fill in:
-- **Title** — what you want done
-- **Description** — detailed requirements
-- **Criteria** — how the AI should evaluate the work (e.g. "Code quality, Documentation, Tests")
-- **Reward Points** — bounty amount
+## Usage Guide
 
-### 2. Submit Work
+1. **Connect Wallet** — Click _Connect Wallet_ in the navbar. MetaMask will prompt; switch to Bradbury Testnet if asked.
+2. **Create a Task** — Go to `/app/create`. Fill in title, description, evaluation criteria, and reward points, then submit.
+3. **Submit Work** — Open any task from `/app`, click _Submit Work_, and paste a URL plus a short description of what you did.
+4. **Request AI Evaluation** — Open the submission detail page and click _Evaluate_. The contract runs the AI validators, and the result (score, grade, detailed feedback) is written on-chain.
+5. **Climb the Leaderboard** — Visit `/app/leaderboard` to see addresses ranked by cumulative score.
 
-From any open task page, click **Submit Your Work** and provide:
-- **Work URL** — link to your repo, gist, or deliverable
-- **Description** — explanation of how your work meets the criteria
-
-### 3. Request AI Evaluation
-
-Open the submission page → click **Request AI Evaluation**.
-
-The AI validators take 30–90 seconds to reach consensus. Results include:
-- **Score** (0–100)
-- **Grade** (A / B / C / D / F)
-- **Written feedback**
-- **Strengths** and **areas for improvement**
-- **Per-criterion scores**
-
-### 4. Check the Leaderboard
-
-Navigate to **`/leaderboard`** and search any address to see their cumulative score.
+---
 
 ## Project Structure
 
 ```
-Proof-of-Impact/
+proof-of-impact/
 ├── contracts/
-│   ├── proof_of_impact.py      # GenLayer Intelligent Contract
-│   └── contractABI.json        # Contract metadata
+│   ├── proof_of_impact.py       # Live Bradbury contract
+│   ├── ProofOfImpact.py         # Earlier draft
+│   ├── global_leaderboard.py    # Leaderboard helper
+│   └── contractABI.json         # Network metadata (Bradbury)
 ├── public/
+│   ├── logo.png
 │   └── logo.svg
 ├── src/
-│   ├── components/             # Reusable UI components
-│   ├── context/                # React contexts (Wallet, Toast)
-│   ├── hooks/                  # Custom React hooks
-│   ├── lib/                    # Contract client, utils
-│   ├── pages/                  # Route pages
-│   ├── App.jsx                 # Routes
-│   └── main.jsx                # Entry point
-├── index.html
+│   ├── components/
+│   │   ├── Layout.jsx           # Navbar + RainbowKit ConnectButton
+│   │   ├── ScoreCircle.jsx
+│   │   ├── GradeBadge.jsx
+│   │   ├── Spinner.jsx
+│   │   ├── WalletConnect.jsx
+│   │   └── ui/wave-background.jsx
+│   ├── context/
+│   │   ├── WalletContext.jsx    # Address + connect/disconnect state
+│   │   └── ToastContext.jsx
+│   ├── hooks/
+│   │   └── useContract.js
+│   ├── lib/
+│   │   ├── contract.js          # genlayer-js client + createAccount
+│   │   ├── wagmi.js             # wagmi config (RainbowKit)
+│   │   └── utils.js
+│   ├── pages/
+│   │   ├── LandingPage.jsx
+│   │   ├── HomePage.jsx
+│   │   ├── CreateTaskPage.jsx
+│   │   ├── TaskPage.jsx
+│   │   ├── SubmitWorkPage.jsx
+│   │   ├── SubmissionPage.jsx
+│   │   └── LeaderboardPage.jsx
+│   ├── App.jsx
+│   ├── main.jsx
+│   └── index.css
 ├── package.json
 ├── tailwind.config.js
-└── vite.config.js
+├── vite.config.js
+└── README.md
 ```
 
+---
 
 ## How AI Evaluation Works
 
-GenLayer's **Optimistic Democracy** mechanism:
+GenLayer is the only chain where smart contracts can natively reason over **subjective inputs** (URLs, prose, images) without an off-chain oracle. Two ideas make this work:
 
-1. The user calls `evaluate_submission(sub_id)`
-2. Multiple AI validator nodes independently fetch the task + submission and prompt an LLM
-3. Each validator scores the work using the **Equivalence Principle** — outputs must agree within a tolerance:
-   - Score within ±5 points
-   - Grade exact match
-   - Per-criterion scores within ±10 points
-4. If consensus is reached, the score is finalized on-chain
-5. The contributor's `contributor_points` mapping is incremented
+### Optimistic Democracy
 
-The contract code in [`contracts/proof_of_impact.py`](./contracts/proof_of_impact.py) shows the exact prompt and equivalence rules.
+A small committee of validator nodes independently runs the same Python contract method. Each node has its own LLM, so each one returns a slightly different output (e.g., `score: 87`, `score: 84`, `score: 86`). Optimistic Democracy assumes the majority is honest and lets dissenting nodes challenge the result.
 
-## Design
+### The Equivalence Principle
 
-- **Bloomberg Terminal × Web3** aesthetic — dark theme, monospace addresses, neon accent colors
-- **Glassmorphism** — translucent cards with backdrop blur
-- **Animated SVG wave background** — subtle, interactive, brand-aligned
-- **Color system**:
-  - `--purple` `#8b5cf6` — primary actions
-  - `--blue` `#3b82f6` — info / B grade
-  - `--green` `#10b981` — success / A grade
-  - `--yellow` `#f59e0b` — warning / C grade
-  - `--orange` `#f97316` — D grade
-  - `--red` `#ef4444` — error / F grade
+To turn many "almost-equal" answers into one deterministic on-chain value, the contract calls `gl.eq_principle.prompt_comparative(...)` with a natural-language **principle** describing what counts as equivalent. In this dApp the principle is:
+
+> _"score within 5 points, grade must match"_
+
+If the validators' outputs are equivalent under that rule, the chain finalizes a single canonical result. If not, the validators retry until consensus is reached or the call fails. This is what makes AI grading **trustlessly reproducible** instead of just averaged.
+
+---
+
+## Design System
+
+The UI is a deliberate "Bloomberg Terminal × Web3" mashup: a black canvas, monospace numbers, animated phosphor wave field, and neon accents.
+
+| Token | Value | Usage |
+| --- | --- | --- |
+| Background | `#000000` | Page base |
+| Glass | `bg-white/5` + `backdrop-blur-md` | Cards, modals |
+| Border | `border-white/10` | Card edges |
+| Phosphor Green | `#10b981` | Positive states, "live" badge |
+| Neon Purple | `#8b5cf6` | Brand accent, network badge |
+| Sky Blue | `#3b82f6` | Chain ID, links |
+| Warning Amber | `#f59e0b` | GenLayer brand badge |
+| Slate | `#64748b` | Muted text, license badge |
+
+Typography is `Geist Sans` for prose and `JetBrains Mono`-style monospace for code, addresses, and numbers.
+
+---
 
 ## Roadmap
 
-- [ ] Tutorial mode (educational overlays explaining GenLayer architecture)
-- [ ] Task detail filters (by reward, criteria, creator)
-- [ ] On-chain comments / discussions per task
-- [ ] Multi-language UI
-- [ ] Integration with Asimov & Studionet for testing
+- [ ] Task expiration + auto-close after N submissions
+- [ ] On-chain reputation NFTs for top contributors
+- [ ] Optional human-in-the-loop dispute window
+- [ ] Webhook notifications when a submission is evaluated
+- [ ] Subgraph-style indexer for faster leaderboard queries
+- [ ] Mobile-first redesign of the submission flow
+
+---
 
 ## Contributing
 
-Contributions welcome. Open an issue or pull request.
+Pull requests are welcome. For bigger changes, open an issue first to discuss what you would like to change.
+
+```bash
+# 1. Fork → clone
+# 2. Create a feature branch
+git checkout -b feat/your-feature
+
+# 3. Commit
+git commit -m "feat: short description"
+
+# 4. Push and open a PR
+git push origin feat/your-feature
+```
+
+Please run `npm run build` before opening a PR to confirm the bundle still compiles. Bundle-size warnings about chunks > 500 kB are expected and harmless.
+
+---
 
 ## License
 
-MIT © 2026 — Built for the GenLayer Hackathon.
+[MIT](LICENSE) © 2025 — Built for the **GenLayer Hackathon**.
+
+---
 
 ## Links
 
-- **GenLayer Docs** — [docs.genlayer.com](https://docs.genlayer.com)
-- **GenLayer JS SDK** — [github.com/yeagerai/genlayer-js](https://github.com/yeagerai/genlayer-js)
-- **Bradbury Explorer** — [explorer-bradbury.genlayer.com](https://explorer-bradbury.genlayer.com)
+- **Live demo:** https://proof-of-impact-pi.vercel.app/
+- **Repository:** https://github.com/nanometa/Proof-of-Impact
+- **Contract on explorer:** https://explorer-bradbury.genlayer.com/address/0xD931392177067735378b26e5EE37851284c19d69
+- **GenLayer docs:** https://docs.genlayer.com
+- **Bradbury faucet:** https://testnet-faucet.genlayer.foundation
+
+<div align="center">
+
+—
+
+**Built with GenLayer.** Where smart contracts meet AI consensus.
+
+</div>
