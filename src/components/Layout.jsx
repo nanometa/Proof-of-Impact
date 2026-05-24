@@ -1,31 +1,156 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
+import { Waves } from '@/components/ui/wave-background.jsx'
 
 export default function Layout() {
   const location = useLocation()
 
   return (
-    <div className="min-h-screen flex flex-col bg-bg">
-      <nav className="border-b border-border/50 glass sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple/20 to-blue/10 border border-purple/20 flex items-center justify-center group-hover:border-purple/40 transition-all">
-              <svg className="w-5 h-5 text-purple" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-              </svg>
-            </div>
-            <span className="font-heading font-bold text-lg text-text hidden sm:block">Proof of Impact</span>
-          </Link>
+    <div className="relative w-full min-h-screen overflow-hidden bg-background text-foreground flex flex-col font-sans">
+      {/* Dynamic Interactive Wave Background */}
+      <Waves
+        className="absolute inset-0 z-0 pointer-events-none"
+        strokeColor="rgba(139, 92, 246, 0.4)"
+        backgroundColor="transparent"
+      />
 
-          <div className="flex items-center gap-2">
-            <Link to="/app" className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${location.pathname.startsWith('/app') || location.pathname.startsWith('/task') || location.pathname === '/create' ? 'text-purple bg-purple/5' : 'text-muted hover:text-text'}`}>Tasks</Link>
-            <Link to="/leaderboard" className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${location.pathname === '/leaderboard' ? 'text-purple bg-purple/5' : 'text-muted hover:text-text'}`}>Leaderboard</Link>
-            <div className="w-px h-6 bg-border/50 mx-1 hidden sm:block" />
-            <ConnectButton chainStatus="icon" showBalance={false} accountStatus="address" />
-          </div>
-        </div>
-      </nav>
-      <main className="flex-1"><Outlet /></main>
+      {/* Blurred Overlay Shape (global backdrop glow) */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[984px] h-[527px] opacity-90 bg-gray-950 blur-[82px] pointer-events-none z-10" />
+
+      {/* Content wrapper z-20 above video and overlay blur */}
+      <div className="relative z-20 flex-1 flex flex-col justify-between overflow-visible">
+        {/* Navbar */}
+        <header className="w-full flex flex-col">
+          <nav className="w-full py-5 px-8 flex flex-row justify-between items-center">
+            {/* Left: Logo */}
+            <Link to="/" className="flex items-center gap-2.5 group">
+              <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:border-white/20 transition-all">
+                <img
+                  src="/logo.svg"
+                  alt="Proof of Impact Logo"
+                  className="w-6 h-6 object-contain"
+                />
+              </div>
+            </Link>
+
+            {/* Center: Nav Items */}
+            <div className="hidden md:flex items-center gap-8">
+              <Link
+                to="/app"
+                className={`font-medium transition-colors ${
+                  location.pathname === '/app' ||
+                  location.pathname.startsWith('/task') ||
+                  location.pathname === '/create'
+                    ? 'text-purple font-semibold'
+                    : 'text-foreground/90 hover:text-foreground'
+                }`}
+              >
+                Tasks
+              </Link>
+              <Link
+                to="/leaderboard"
+                className={`font-medium transition-colors ${
+                  location.pathname === '/leaderboard'
+                    ? 'text-purple font-semibold'
+                    : 'text-foreground/90 hover:text-foreground'
+                }`}
+              >
+                Leaderboard
+              </Link>
+            </div>
+
+            {/* Right: Connect Wallet Custom Button */}
+            <div>
+              <ConnectButton.Custom>
+                {({
+                  account,
+                  chain,
+                  openAccountModal,
+                  openChainModal,
+                  openConnectModal,
+                  mounted,
+                }) => {
+                  const ready = mounted;
+                  const connected = ready && account && chain;
+
+                  return (
+                    <div
+                      {...(!ready && {
+                        'aria-hidden': true,
+                        style: {
+                          opacity: 0,
+                          pointerEvents: 'none',
+                          userSelect: 'none',
+                        },
+                      })}
+                    >
+                      {(() => {
+                        if (!connected) {
+                          return (
+                            <button
+                              onClick={openConnectModal}
+                              type="button"
+                              className="heroSecondary rounded-full px-4 py-2 text-sm font-medium transition-all"
+                            >
+                              Connect Wallet
+                            </button>
+                          )
+                        }
+
+                        if (chain.unsupported) {
+                          return (
+                            <button
+                              onClick={openChainModal}
+                              type="button"
+                              className="bg-red/80 hover:bg-red text-white rounded-full px-4 py-2 text-sm font-medium transition-all"
+                            >
+                              Wrong Network
+                            </button>
+                          )
+                        }
+
+                        return (
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={openChainModal}
+                              type="button"
+                              className="heroSecondary rounded-full px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 transition-all"
+                            >
+                              {chain.hasIcon && chain.iconUrl && (
+                                <img
+                                  alt={chain.name ?? 'Chain icon'}
+                                  src={chain.iconUrl}
+                                  className="w-3.5 h-3.5 rounded-full"
+                                />
+                              )}
+                              {chain.name}
+                            </button>
+
+                            <button
+                              onClick={openAccountModal}
+                              type="button"
+                              className="heroSecondary rounded-full px-4 py-2 text-sm font-medium transition-all"
+                            >
+                              {account.displayName}
+                            </button>
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  )
+                }}
+              </ConnectButton.Custom>
+            </div>
+          </nav>
+
+
+        </header>
+
+        {/* Dynamic page content */}
+        <main className="flex-1 flex flex-col relative z-20">
+          <Outlet />
+        </main>
+      </div>
     </div>
   )
 }

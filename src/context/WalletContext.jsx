@@ -1,5 +1,6 @@
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useEffect } from 'react'
 import { useAccount } from 'wagmi'
+import { setWalletAddress } from '../lib/contract'
 
 const defaultWallet = {
   address: null,
@@ -9,7 +10,12 @@ const defaultWallet = {
 const WalletContext = createContext(defaultWallet)
 
 export function WalletProvider({ children }) {
-  // Pas besoin — RainbowKit gère tout via WagmiProvider
+  const { address } = useAccount()
+  
+  useEffect(() => {
+    setWalletAddress(address || null)
+  }, [address])
+
   return children
 }
 

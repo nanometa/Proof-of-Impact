@@ -6,34 +6,63 @@
  *   - createAccount() → used internally for writeContract signing
  *     → produces eth_sendRawTransaction → Type: "Call" ✅
  *
- * Contract: 0xe8edD92871983af27af5bC15edF6A96265e6a689
- * Network: GenLayer Studionet (Chain ID 61999)
+ * Contract: 0x9C474912AE818070fADA725324A8a7ad7e002fD3
+ * Network: GenLayer Bradbury Testnet (Chain ID 4221)
  */
 import { createClient, createAccount } from "genlayer-js";
-import { studionet } from "genlayer-js/chains";
+import { testnetBradbury } from "genlayer-js/chains";
 
-const CONTRACT_ADDRESS = "0xe8edD92871983af27af5bC15edF6A96265e6a689";
-const EXPLORER_BASE = "https://explorer-studio.genlayer.com/tx";
+const CONTRACT_ADDRESS = "0xD931392177067735378b26e5EE37851284c19d69";
+// GlobalLeaderboard contract — stores all contributors, readable without wallet
+// Deploy this contract via GenLayer Studio and paste address here
+const LEADERBOARD_CONTRACT = "0x0000000000000000000000000000000000000000"; // TODO: replace after deploy
+const EXPLORER_BASE = "https://explorer-bradbury.genlayer.com/tx";
 const POLL_INTERVAL = 3000;
 const MAX_TIMEOUT = 120000;
 
 export { CONTRACT_ADDRESS, EXPLORER_BASE };
 
-// User's MetaMask address (UI only — not used for signing)
+// User's MetaMask address
 let walletAddress = null;
 
-// Internal signing client — uses an auto-generated account → Type: "Call"
+import { custom } from 'viem';
+import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
+
+// Internal signing client
 let signingClient = null;
 let signingAccount = null;
 
+function getSigningAccount() {
+  if (signingAccount) return signingAccount;
+  let pk = localStorage.getItem('gl_burner_pk');
+  if (!pk) {
+    pk = generatePrivateKey();
+    localStorage.setItem('gl_burner_pk', pk);
+  }
+  signingAccount = privateKeyToAccount(pk);
+  return signingAccount;
+}
+
+export function getBurnerAddress() {
+  return getSigningAccount()?.address;
+}
+
 function getSigningClient() {
+  // If user connected MetaMask, use it directly!
+  if (typeof window !== "undefined" && window.ethereum && walletAddress) {
+    return createClient({
+      chain: testnetBradbury,
+      account: walletAddress,
+      transport: custom(window.ethereum),
+    });
+  }
+
+  // Fallback to burner wallet
   if (signingClient) return signingClient;
-  signingAccount = createAccount();
   signingClient = createClient({
-    chain: studionet,
-    account: signingAccount,
+    chain: testnetBradbury,
+    account: getSigningAccount(),
   });
-  console.log("[GenLayer] Signing account:", signingAccount.address);
   return signingClient;
 }
 
@@ -42,7 +71,7 @@ let readClient = null;
 function getReadClient() {
   if (readClient) return readClient;
   readClient = createClient({
-    chain: studionet,
+    chain: testnetBradbury,
     account: signingAccount || createAccount(),
   });
   return readClient;
@@ -64,6 +93,12 @@ export async function connectMetaMask() {
 
 export function getWalletAddress() { return walletAddress; }
 export function isConnected() { return !!walletAddress; }
+export function setWalletAddress(addr) {
+  walletAddress = addr;
+  if (addr) {
+    getSigningClient();
+  }
+}
 export function disconnect() {
   walletAddress = null;
   signingClient = null;
@@ -180,14 +215,34 @@ async function pollTx(hash) {
   throw new Error("Consensus taking longer, try again");
 }
 
+// ═══════════════ CACHE ═══════════════
+const _cache = new Map();
+const CACHE_TTL = 30_000; // 30s
+
+function getCached(key) {
+  const entry = _cache.get(key);
+  if (entry && Date.now() - entry.ts < CACHE_TTL) return entry.val;
+  _cache.delete(key);
+  return undefined;
+}
+
+function setCache(key, val) {
+  _cache.set(key, { val, ts: Date.now() });
+  return val;
+}
+
 // ═══════════════ READ ═══════════════
 async function safeRead(fn, args = []) {
+  const cacheKey = `${CONTRACT_ADDRESS}:${fn}:${JSON.stringify(args)}`;
+  const cached = getCached(cacheKey);
+  if (cached !== undefined) return cached;
   try {
-    return await getReadClient().readContract({
+    const result = await getReadClient().readContract({
       address: CONTRACT_ADDRESS,
       functionName: fn,
       args,
     });
+    return setCache(cacheKey, result);
   } catch (e) {
     console.warn(`[GenLayer] read ${fn} failed:`, e.message);
     return null;
@@ -204,21 +259,21 @@ export async function getSubmissionCount() { const r = await safeRead("get_submi
 export async function loadAllTasks() {
   const count = await getTaskCount();
   if (!count) return [];
-  const tasks = [];
-  for (let i = 0; i < count; i++) {
-    try { const t = await getTask(`task-${i}`); if (t) tasks.push(t); } catch {}
-  }
-  return tasks;
+  const promises = Array.from({ length: count }, (_, i) =>
+    getTask(`task-${i}`).catch(() => null)
+  );
+  const results = await Promise.all(promises);
+  return results.filter(Boolean);
 }
 
 export async function loadSubmissionsForTask(taskId) {
   const count = await getSubmissionCount();
   if (!count) return [];
-  const subs = [];
-  for (let i = 0; i < count; i++) {
-    try { const s = await getSubmission(`sub-${i}`); if (s && s.task_id === taskId) subs.push(s); } catch {}
-  }
-  return subs;
+  const promises = Array.from({ length: count }, (_, i) =>
+    getSubmission(`sub-${i}`).catch(() => null)
+  );
+  const results = await Promise.all(promises);
+  return results.filter(s => s && s.task_id === taskId);
 }
 
 function ensureConnected() {
@@ -235,8 +290,116 @@ function parseResult(r) {
 }
 
 function extractError(e) {
-  const msg = e?.shortMessage || e?.message || String(e);
-  if (msg.includes("User rejected")) return "Transaction rejected";
-  if (msg.includes("insufficient funds")) return "Signing account has no GEN balance";
+  let msg = e.message || String(e);
+  
+  if (msg.includes("does not have enough funds")) {
+    const burnerAddress = getBurnerAddress();
+    return `Your internal burner wallet (${burnerAddress}) needs GEN tokens for gas fees! Please copy this address and send 1 GEN to it from your MetaMask to continue.`;
+  }
+  
+  const match = msg.match(/UserError:\s*(.*)/);
+  if (match) return match[1];
+  if (msg.length > 100) return msg.substring(0, 100) + "...";
   return msg;
+}
+
+// ═══════════════ GLOBAL LEADERBOARD CONTRACT ═══════════════
+
+export { LEADERBOARD_CONTRACT };
+
+/**
+ * Read all entries from the GlobalLeaderboard contract.
+ * Returns [{address, score, rank}] sorted descending.
+ * No wallet connection needed.
+ */
+export async function getAllLeaderboardEntries() {
+  // If the leaderboard contract is deployed, read from it
+  if (LEADERBOARD_CONTRACT !== "0x0000000000000000000000000000000000000000") {
+    try {
+      const client = getReadClient();
+      const raw = await client.readContract({
+        address: LEADERBOARD_CONTRACT,
+        functionName: "get_all_entries",
+        args: [],
+      });
+      const result = parseResult(raw);
+      if (Array.isArray(result)) return result;
+      if (typeof result === "string") return JSON.parse(result);
+    } catch (e) {
+      console.warn("[LeaderboardContract] get_all_entries failed, falling back:", e.message);
+    }
+  }
+
+  // ── Fallback: scrape all submissions from the main contract ──
+  return await scrapeLeaderboardFromSubmissions();
+}
+
+export async function getLeaderboardTop(n = 10) {
+  const all = await getAllLeaderboardEntries();
+  return all.slice(0, n);
+}
+
+export async function getLeaderboardContributorCount() {
+  if (LEADERBOARD_CONTRACT !== "0x0000000000000000000000000000000000000000") {
+    try {
+      const client = getReadClient();
+      const r = await client.readContract({
+        address: LEADERBOARD_CONTRACT,
+        functionName: "get_contributor_count",
+        args: [],
+      });
+      return r != null ? Number(r) : 0;
+    } catch {}
+  }
+  const all = await getAllLeaderboardEntries();
+  return all.length;
+}
+
+/**
+ * Fallback: walk all submissions in the main contract,
+ * group by worker address, sum their scores → build leaderboard.
+ */
+async function scrapeLeaderboardFromSubmissions() {
+  try {
+    const subCount = await getSubmissionCount();
+    if (!subCount) return [];
+
+    // Fetch all submissions in parallel
+    const subPromises = Array.from({ length: subCount }, (_, i) =>
+      getSubmission(`sub-${i}`).catch(() => null)
+    );
+    const allSubs = await Promise.all(subPromises);
+
+    // Filter to evaluated only, then fetch scores in parallel
+    const evaluated = allSubs
+      .map((sub, i) => sub && sub.status === "evaluated" ? { sub, idx: i } : null)
+      .filter(Boolean);
+
+    if (!evaluated.length) return [];
+
+    const scorePromises = evaluated.map(({ idx }) =>
+      getScore(`sub-${idx}`).catch(() => 0)
+    );
+    const scores = await Promise.all(scorePromises);
+
+    // Build score map
+    const scoreMap = {};
+    evaluated.forEach(({ sub }, i) => {
+      const score = scores[i];
+      if (!score) return;
+      const worker = (sub.worker || "").toLowerCase();
+      if (!worker) return;
+      scoreMap[worker] = (scoreMap[worker] || 0) + score;
+    });
+
+    const entries = Object.entries(scoreMap)
+      .map(([address, score]) => ({ address, score }))
+      .sort((a, b) => b.score - a.score)
+      .map((e, i) => ({ ...e, rank: i + 1 }));
+
+    return entries;
+  } catch (e) {
+    console.error("[LeaderboardFallback] scrape failed:", e.message);
+    return [];
+  }
 }

@@ -4,7 +4,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg: '#0a0a0f',
+        bg: 'hsl(var(--background))',
+        background: 'hsl(var(--background))',
+        text: 'hsl(var(--foreground))',
+        foreground: 'hsl(var(--foreground))',
+        'hero-sub': 'hsl(var(--hero-sub-text))',
         surface: '#111118',
         border: '#1e1e2e',
         purple: '#8b5cf6',
@@ -13,12 +17,11 @@ export default {
         yellow: '#f59e0b',
         red: '#ef4444',
         orange: '#f97316',
-        text: '#e2e8f0',
         muted: '#64748b',
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
-        heading: ['Space Grotesk', 'Inter', 'sans-serif'],
+        sans: ['"Geist Sans"', 'Outfit', 'sans-serif'],
+        heading: ['"General Sans"', 'Syne', 'Outfit', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
     },
