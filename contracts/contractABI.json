@@ -1,9 +1,10 @@
 {
   "contract_name": "ProofOfImpact",
-  "address": "0xe8edD92871983af27af5bC15edF6A96265e6a689",
-  "network": "studionet",
-  "rpc": "https://studio.genlayer.com/api",
-  "chain_id": 61999,
+  "address": "0xD931392177067735378b26e5EE37851284c19d69",
+  "network": "testnetBradbury",
+  "rpc": "https://rpc-bradbury.genlayer.com",
+  "chain_id": 4221,
+  "explorer": "https://explorer-bradbury.genlayer.com",
   "write_methods": [
     {
       "name": "create_task",
@@ -28,6 +29,5 @@
     { "name": "get_leaderboard_score", "args": ["address: str"], "returns": "uint256" },
     { "name": "get_task_count", "args": [], "returns": "uint256" },
     { "name": "get_submission_count", "args": [], "returns": "uint256" }
-  ],
-  "notes": "GenLayer does NOT use EVM ABI encoding. Use genlayer-js SDK writeContract/readContract with functionName + args array."
+  ]
 }
