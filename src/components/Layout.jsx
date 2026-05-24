@@ -21,20 +21,18 @@ export default function Layout() {
       <div className="relative z-20 flex-1 flex flex-col justify-between overflow-visible">
         {/* Navbar */}
         <header className="w-full flex flex-col">
-          <nav className="w-full py-5 px-8 flex flex-row justify-between items-center">
+          <nav className="w-full py-5 px-8 grid grid-cols-3 items-center">
             {/* Left: Logo */}
-            <Link to="/" className="flex items-center gap-2.5 group">
-              <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:border-white/20 transition-all">
-                <img
-                  src="/logo.svg"
-                  alt="Proof of Impact Logo"
-                  className="w-6 h-6 object-contain"
-                />
-              </div>
+            <Link to="/" className="flex items-center gap-2.5 group justify-self-start">
+              <img
+                src="/logo.svg"
+                alt="Proof of Impact Logo"
+                className="w-12 h-12 object-contain"
+              />
             </Link>
 
             {/* Center: Nav Items */}
-            <div className="hidden md:flex items-center gap-8">
+            <div className="hidden md:flex items-center gap-8 justify-self-center">
               <Link
                 to="/app"
                 className={`font-medium transition-colors ${
@@ -60,7 +58,7 @@ export default function Layout() {
             </div>
 
             {/* Right: Connect Wallet Custom Button */}
-            <div>
+            <div className="justify-self-end">
               <ConnectButton.Custom>
                 {({
                   account,

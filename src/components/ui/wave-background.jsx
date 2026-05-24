@@ -278,20 +278,6 @@ export function Waves({
                 xmlns="http://www.w3.org/2000/svg"
                 style={{ willChange: 'contents' }}
             />
-            <div
-                className="pointer-dot"
-                style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: `${pointerSize}rem`,
-                    height: `${pointerSize}rem`,
-                    background: strokeColor,
-                    borderRadius: '50%',
-                    transform: 'translate3d(calc(var(--x) - 50%), calc(var(--y) - 50%), 0)',
-                    willChange: 'transform',
-                }}
-            />
         </div>
     )
 }
