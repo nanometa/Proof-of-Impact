@@ -1,69 +1,79 @@
-# Proof of Impact
+# Proof of Impact 🌐🤖
 
-A decentralized work platform on **GenLayer** where AI validators score contributions on-chain.
+**Proof of Impact** is a fully decentralized task outsourcing and evaluation platform powered by **GenLayer AI Smart Contracts**. It allows users to create tasks with specific criteria, accept work submissions, and rely on decentralized AI validators to autonomously grade the work and assign reward points.
 
-## Features
+![Proof of Impact Platform Preview](./Gemini_Generated_Image_7ysw8o7ysw8o7ysw.png)
 
-- **Create Tasks** — Post bounties with evaluation criteria and reward points
-- **Submit Work** — Workers submit proof-of-work with URLs and descriptions
-- **AI Evaluation** — GenLayer AI validators score work objectively via consensus (0-100)
-- **Leaderboard** — Cumulative on-chain reputation based on scores
-- **RainbowKit Wallet** — Connect with MetaMask or any EVM wallet
+## 🚀 Features
 
-## Tech Stack
+- **Decentralized AI Evaluation**: Utilizes GenLayer's AI nodes to fetch real-world data (web pages, repositories) and grade submissions based on custom LLM prompts using the Equivalence Principle.
+- **On-Chain Leaderboard**: Seamlessly tracks top contributors and their accrued reputation/points entirely on the blockchain.
+- **Web3 Wallet Integration**: Connect seamlessly via MetaMask, powered by `wagmi` and `RainbowKit`.
+- **Hybrid Account Abstraction**: Automatically maps Web3 identities to GenLayer's backend using internal burner wallets for zero-friction transactions.
+- **Modern UI/UX**: Built with React, Vite, and TailwindCSS for a sleek, responsive, glassmorphism-inspired dark mode aesthetic.
 
-- React 18 + Vite
-- TailwindCSS (dark theme)
-- React Router v6
-- RainbowKit + wagmi (wallet connection)
-- genlayer-js v1.1.8 (contract interaction)
+## 🛠️ Technology Stack
 
-## Contract
+- **Frontend**: React (Vite), TailwindCSS, React Router
+- **Web3 Integration**: `wagmi`, `RainbowKit`, `viem`
+- **GenLayer SDK**: `genlayer-js`
+- **Smart Contracts**: Python (GenLayer `gl.Contract`)
+- **Deployment**: Vercel
 
-| Field | Value |
-|-------|-------|
-| Address | `0xe8edD92871983af27af5bC15edF6A96265e6a689` |
-| Network | GenLayer Studionet |
-| Chain ID | 61999 |
-| RPC | `https://studio.genlayer.com/api` |
-| Explorer | [explorer-studio.genlayer.com](https://explorer-studio.genlayer.com) |
-
-## Setup
-
-```bash
-npm install
-npm run dev
-```
-
-Open [http://localhost:5173](http://localhost:5173)
-
-## Contract Methods
-
-### Write (transaction)
-- `create_task(title, description, criteria, reward_points)`
-- `submit_work(task_id, work_url, description)`
-- `evaluate_submission(sub_id)` — triggers AI evaluation (30-90s)
-
-### Read (no gas)
-- `get_task(task_id)` → JSON
-- `get_submission(sub_id)` → JSON
-- `get_score(sub_id)` → int
-- `get_leaderboard_score(address)` → int
-- `get_task_count()` → int
-- `get_submission_count()` → int
-
-## Architecture
+## 📂 Repository Structure
 
 ```
-User → RainbowKit (wallet UI) → MetaMask
-         ↓
-     genlayer-js SDK → createAccount() → eth_sendRawTransaction
-         ↓
-     GenLayer Studionet RPC → AI Validators → Consensus → Finalized
+├── contracts/               # Python Smart Contracts deployed to GenLayer
+│   ├── ProofOfImpact.py     # Main AI Evaluation & Task Logic
+│   └── global_leaderboard.py# Read-only Global Leaderboard aggregator
+├── src/
+│   ├── components/          # Reusable UI components (Navbar, Layout, Spinners)
+│   ├── context/             # React Contexts (WalletContext)
+│   ├── lib/                 # Utility functions & GenLayer client configuration
+│   └── pages/               # Application Routes (Home, Tasks, Leaderboard)
 ```
 
-Wallet connection via RainbowKit is for **identity display only**. All write transactions are signed by an auto-generated local account (required by GenLayer for Type: "Call" transactions).
+## 🧠 How It Works
 
-## License
+1. **Create a Task**: A task creator specifies a title, detailed description, evaluation criteria, and a point reward.
+2. **Submit Work**: Contributors submit a URL pointing to their completed work (e.g., a GitHub Gist, a raw file, an article).
+3. **AI Validation**: GenLayer's non-deterministic AI validators fetch the provided URL, read the content, and compare it against the criteria.
+4. **Consensus**: Multiple AI nodes reach consensus on the grade (A-F) and the score (0-100) using the Equivalence Principle.
+5. **Reward Allocation**: The system calculates the earned points `(Reward * Score) / 100` and permanently records it on the Leaderboard.
 
-MIT
+## 💻 Local Development
+
+### Prerequisites
+
+- Node.js (v18+)
+- GenLayer Simulator / Network Access
+- MetaMask Browser Extension
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-username/proof-of-impact.git
+   cd proof-of-impact
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Configure Smart Contracts:
+   Update the `CONTRACT_ADDRESS` inside `src/lib/contract.js` with your deployed GenLayer contract address.
+
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+## 📜 Smart Contract Highlights
+
+The `ProofOfImpact.py` contract relies heavily on GenLayer's standard library. It utilizes `gl.nondet.web.render()` to dynamically read content from external sources and `gl.nondet.exec_prompt()` to interact with the LLM layer natively within the consensus loop.
+
+## 🛡️ License
+
+This project is open-source and available under the [MIT License](LICENSE).

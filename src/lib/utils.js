@@ -23,5 +23,5 @@ export function getGradeColor(grade) {
 }
 
 export function getExplorerLink(txHash) {
-  return `https://explorer-studio.genlayer.com/tx/${txHash}`
+  return `https://explorer-bradbury.genlayer.com/tx/${txHash}`
 }
