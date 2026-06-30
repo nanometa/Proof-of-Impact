@@ -104,7 +104,7 @@ The dApp talks to a single live contract on the **GenLayer Bradbury Testnet**.
 
 ## Smart Contract
 
-The contract is written in Python using the GenLayer SDK and lives at [`contracts/proof_of_impact.py`](contracts/proof_of_impact.py).
+The contract is written in Python using the GenLayer SDK and lives at [`contracts/ProofOfImpact.py`](contracts/ProofOfImpact.py) — the exact version deployed at `0xD931392177067735378b26e5EE37851284c19d69` on Bradbury.
 
 ### Write methods
 
@@ -138,14 +138,25 @@ def get_submission_count() -> u256
 ### AI evaluation core
 
 ```python
-def evaluate():
-    return gl.nondet.exec_prompt(
-        f"Evaluate this work: ... Return JSON {{score, grade, feedback, ...}}"
+def evaluate_single_source():
+    # Live URL fetch — penalized heavily if unreachable or empty
+    try:
+        url_content = gl.nondet.web.render(work_url, mode="text")[:600]
+    except Exception:
+        url_content = "URL could not be fetched."
+    prompt = build_evaluation_prompt(
+        task_title, task_description, task_criteria,
+        work_url, work_description, url_content,
     )
+    return parse_evaluation_result(gl.nondet.exec_prompt(prompt))
 
 result_json = gl.eq_principle.prompt_comparative(
-    evaluate,
-    principle="score within 5 points, grade must match"
+    evaluate_single_source,
+    principle=(
+        "score must be within 5 points. "
+        "grade must match exactly. "
+        "url_valid must match exactly."
+    ),
 )
 ```
 
@@ -233,8 +244,7 @@ The production bundle is emitted to `dist/`.
 ```
 proof-of-impact/
 ├── contracts/
-│   ├── proof_of_impact.py       # Live Bradbury contract
-│   ├── ProofOfImpact.py         # Earlier draft
+│   ├── ProofOfImpact.py         # Live Bradbury contract (deployed at 0xD931…19d69)
 │   ├── global_leaderboard.py    # Leaderboard helper
 │   └── contractABI.json         # Network metadata (Bradbury)
 ├── public/
@@ -288,7 +298,7 @@ A small committee of validator nodes independently runs the same Python contract
 
 To turn many "almost-equal" answers into one deterministic on-chain value, the contract calls `gl.eq_principle.prompt_comparative(...)` with a natural-language **principle** describing what counts as equivalent. In this dApp the principle is:
 
-> _"score within 5 points, grade must match"_
+> _"score must be within 5 points · grade must match exactly · url_valid must match exactly"_
 
 If the validators' outputs are equivalent under that rule, the chain finalizes a single canonical result. If not, the validators retry until consensus is reached or the call fails. This is what makes AI grading **trustlessly reproducible** instead of just averaged.
 
