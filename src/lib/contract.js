@@ -37,6 +37,23 @@ let signingClient = null
 let signingAccount = null
 let readClient = null
 
+function getEthereumProvider() {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const provider = window.ethereum
+    if (!provider) return null
+
+    if (Array.isArray(provider.providers) && provider.providers.length > 0) {
+      return provider.providers.find((item) => item?.isMetaMask) || provider.providers[0]
+    }
+
+    return provider
+  } catch {
+    return null
+  }
+}
+
 function getSigningAccount() {
   if (signingAccount) return signingAccount
 
@@ -55,11 +72,12 @@ export function getBurnerAddress() {
 }
 
 function getSigningClient() {
-  if (typeof window !== 'undefined' && window.ethereum && walletAddress) {
+  const ethereum = getEthereumProvider()
+  if (ethereum && walletAddress) {
     return createClient({
       chain: testnetBradbury,
       account: walletAddress,
-      transport: custom(window.ethereum),
+      transport: custom(ethereum),
     })
   }
 
@@ -83,11 +101,12 @@ function getReadClient() {
 }
 
 export async function connectMetaMask() {
-  if (!window.ethereum) {
+  const ethereum = getEthereumProvider()
+  if (!ethereum) {
     throw new Error('MetaMask is not installed.')
   }
 
-  const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' })
+  const accounts = await ethereum.request({ method: 'eth_requestAccounts' })
   walletAddress = accounts[0]
   getSigningClient()
   return walletAddress
@@ -113,8 +132,9 @@ export function disconnect() {
   readClient = null
 }
 
-if (typeof window !== 'undefined' && window.ethereum) {
-  window.ethereum.on?.('accountsChanged', (accounts) => {
+const ethereumProvider = getEthereumProvider()
+if (ethereumProvider) {
+  ethereumProvider.on?.('accountsChanged', (accounts) => {
     if (!accounts || accounts.length === 0) {
       disconnect()
       window.location.reload()
@@ -130,12 +150,15 @@ export async function createTask(title, description, criteria, rewardPoints) {
   const taskAddress = TASK_MANAGER_CONTRACT !== ZERO_ADDRESS ? TASK_MANAGER_CONTRACT : CONTRACT_ADDRESS
 
   try {
+    clearReadCache()
     const hash = await client.writeContract({
       address: taskAddress,
       functionName: 'create_task',
       args: [title, description, criteria, Number(rewardPoints)],
     })
-    return await pollTx(hash)
+    const result = await pollTx(hash)
+    clearReadCache()
+    return result
   } catch (e) {
     throw new Error(extractError(e))
   }
@@ -146,12 +169,15 @@ export async function submitWork(taskId, workUrl, description) {
   const client = getSigningClient()
 
   try {
+    clearReadCache()
     const hash = await client.writeContract({
       address: CONTRACT_ADDRESS,
       functionName: 'submit_work',
       args: [taskId, workUrl, description],
     })
-    return await pollTx(hash)
+    const result = await pollTx(hash)
+    clearReadCache()
+    return result
   } catch (e) {
     throw new Error(extractError(e))
   }
@@ -162,6 +188,7 @@ export async function evaluateSubmission(subId) {
   const client = getSigningClient()
 
   try {
+    clearReadCache()
     const hash = await client.writeContract({
       address: CONTRACT_ADDRESS,
       functionName: 'evaluate_submission',
@@ -169,6 +196,7 @@ export async function evaluateSubmission(subId) {
     })
     const result = await pollTx(hash)
     cacheEvaluationFromReceipt(subId, result.receipt)
+    clearReadCache()
     return result
   } catch (e) {
     throw new Error(extractError(e))
@@ -219,7 +247,11 @@ async function pollTx(hash) {
 }
 
 const cache = new Map()
-const CACHE_TTL = 30_000
+const CACHE_TTL = 5_000
+
+export function clearReadCache() {
+  cache.clear()
+}
 
 function getCached(key) {
   const entry = cache.get(key)
@@ -311,7 +343,51 @@ export async function loadAllTasks() {
   return tasks.filter(Boolean)
 }
 
+function normalizeSubmissionIds(raw) {
+  const parsed = parseResult(raw)
+  const list = Array.isArray(parsed) ? parsed : []
+
+  return list
+    .map((item) => String(item || '').trim())
+    .filter((item) => /^sub-\d+$/.test(item))
+}
+
+export async function loadSubmissionIdsForTask(taskId) {
+  return normalizeSubmissionIds(await safeTaskRead('get_task_submissions', [taskId]))
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+export async function waitForTaskSubmissions(taskId, previousIds = [], timeoutMs = 45_000) {
+  const previous = new Set(previousIds)
+  const deadline = Date.now() + timeoutMs
+
+  while (Date.now() < deadline) {
+    clearReadCache()
+    const ids = await loadSubmissionIdsForTask(taskId)
+    const hasNewId = ids.some((id) => !previous.has(id))
+
+    if (ids.length > previousIds.length || hasNewId) return ids
+    await sleep(2_500)
+  }
+
+  clearReadCache()
+  return loadSubmissionIdsForTask(taskId)
+}
+
 export async function loadSubmissionsForTask(taskId) {
+  const ids = await loadSubmissionIdsForTask(taskId)
+
+  if (ids.length) {
+    const submissions = await Promise.all(ids.map((id) => getSubmission(id).catch(() => null)))
+    const fromTaskManager = submissions.filter(
+      (submission) => submission && submission.task_id === taskId,
+    )
+    if (fromTaskManager.length) return fromTaskManager
+  }
+
   const count = await getSubmissionCount()
   if (!count) return []
 

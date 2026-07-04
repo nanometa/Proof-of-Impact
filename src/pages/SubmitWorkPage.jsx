@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { getTask, submitWork } from '../lib/contract'
+import { getTask, loadSubmissionIdsForTask, submitWork, waitForTaskSubmissions } from '../lib/contract'
 import { useToast } from '../context/ToastContext'
 import Spinner from '../components/Spinner'
 
@@ -13,6 +13,7 @@ export default function SubmitWorkPage() {
   const [workUrl, setWorkUrl] = useState('')
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
+  const [submitStatus, setSubmitStatus] = useState('')
   const [pageLoading, setPageLoading] = useState(true)
 
   useEffect(() => {
@@ -38,9 +39,13 @@ export default function SubmitWorkPage() {
     }
 
     setLoading(true)
+    setSubmitStatus('Submitting transaction...')
     try {
+      const previousIds = await loadSubmissionIdsForTask(taskId).catch(() => [])
       const result = await submitWork(taskId, workUrl.trim(), description.trim())
       if (result.hash) {
+        setSubmitStatus('Syncing on-chain data...')
+        await waitForTaskSubmissions(taskId, previousIds)
         addToast({ type: 'success', message: 'Work submitted successfully!', txHash: result.hash })
         navigate(`/task/${taskId}`)
       }
@@ -48,6 +53,7 @@ export default function SubmitWorkPage() {
       addToast({ type: 'error', message: e.message || 'Failed to submit work' })
     } finally {
       setLoading(false)
+      setSubmitStatus('')
     }
   }
 
@@ -125,7 +131,7 @@ export default function SubmitWorkPage() {
             {loading ? (
               <>
                 <Spinner size="sm" />
-                Submitting...
+                {submitStatus || 'Submitting...'}
               </>
             ) : (
               'Submit Work'

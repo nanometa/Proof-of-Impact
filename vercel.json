@@ -1,3 +1,9 @@
 {
-  "name": "proof-of-impact"
+  "name": "proof-of-impact",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ]
 }
