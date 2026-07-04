@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { createTask } from '../lib/contract'
+import { createTask, getTaskCount, waitForTaskCount } from '../lib/contract'
 import { useToast } from '../context/ToastContext'
 import Spinner from '../components/Spinner'
 
@@ -13,6 +13,7 @@ export default function CreateTaskPage() {
   const [criteria, setCriteria] = useState('')
   const [rewardPoints, setRewardPoints] = useState('')
   const [loading, setLoading] = useState(false)
+  const [submitStatus, setSubmitStatus] = useState('')
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -23,16 +24,22 @@ export default function CreateTaskPage() {
     }
 
     setLoading(true)
+    setSubmitStatus('Submitting transaction...')
     try {
+      const previousCount = await getTaskCount().catch(() => 0)
       const result = await createTask(title.trim(), description.trim(), criteria.trim(), Number(rewardPoints))
       if (result.hash) {
+        setSubmitStatus('Syncing on-chain task...')
+        const nextCount = await waitForTaskCount(previousCount)
+        const newTaskId = nextCount > previousCount ? `task-${nextCount - 1}` : null
         addToast({ type: 'success', message: 'Task created successfully!', txHash: result.hash })
-        navigate('/app')
+        navigate(newTaskId ? `/task/${newTaskId}` : '/app')
       }
     } catch (e) {
       addToast({ type: 'error', message: e.message || 'Failed to create task' })
     } finally {
       setLoading(false)
+      setSubmitStatus('')
     }
   }
 
@@ -116,7 +123,7 @@ export default function CreateTaskPage() {
             {loading ? (
               <>
                 <Spinner size="sm" />
-                Creating Task...
+                {submitStatus || 'Creating Task...'}
               </>
             ) : (
               'Create Task'
