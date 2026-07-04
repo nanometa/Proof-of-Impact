@@ -11,7 +11,7 @@
 [![Live](https://img.shields.io/badge/Live-proof--of--impact--pi.vercel.app-10b981?style=flat-square&logo=vercel)](https://proof-of-impact-pi.vercel.app/)
 [![Network](https://img.shields.io/badge/Network-Bradbury%20Testnet-8b5cf6?style=flat-square)](https://explorer-bradbury.genlayer.com)
 [![Chain ID](https://img.shields.io/badge/Chain%20ID-4221-3b82f6?style=flat-square)](https://docs.genlayer.com/developers/networks)
-[![Version](https://img.shields.io/badge/ProofOfImpact-v3.0.2-22c55e?style=flat-square)](#current-bradbury-deployment)
+[![Version](https://img.shields.io/badge/ProofOfImpact-v3.0.3-22c55e?style=flat-square)](#current-bradbury-deployment)
 [![License](https://img.shields.io/badge/License-MIT-64748b?style=flat-square)](#license)
 
 </div>
@@ -96,19 +96,19 @@ GenLayer Bradbury Testnet.
 
 | Contract | Version | Address | Purpose |
 | --- | --- | --- | --- |
-| `TaskManager` | `3.0.0` | [`0xBba8FB0F21C1ebD7BDc32A43f7525fCbECF72aBc`](https://explorer-bradbury.genlayer.com/address/0xBba8FB0F21C1ebD7BDc32A43f7525fCbECF72aBc) | task creation, task status, task counters |
-| `ProofOfImpact` | `3.0.2` | [`0x8D8117828E401bB674295963e0acbB4C7Af257bc`](https://explorer-bradbury.genlayer.com/address/0x8D8117828E401bB674295963e0acbB4C7Af257bc) | submissions, evidence-first AI evaluation, points |
-| `GlobalLeaderboard` | current | [`0x0EB4407460b232cB5BAC868f1296641419Fc3711`](https://explorer-bradbury.genlayer.com/address/0x0EB4407460b232cB5BAC868f1296641419Fc3711) | cumulative contributor rankings |
+| `TaskManager` | `3.0.0` | [`0x90Cad9eBfeCcCb1Dafe7070b93a89dfDe9E4Bd50`](https://explorer-bradbury.genlayer.com/address/0x90Cad9eBfeCcCb1Dafe7070b93a89dfDe9E4Bd50) | task creation, task status, task counters |
+| `ProofOfImpact` | `3.0.3` | [`0x4af859b108124A791f1450D3Ee1E54790a6eCb76`](https://explorer-bradbury.genlayer.com/address/0x4af859b108124A791f1450D3Ee1E54790a6eCb76) | submissions, evidence-first AI evaluation, points |
+| `GlobalLeaderboard` | current | [`0xc335b7326D70067373b7c8c88f42803BcDcC1D5C`](https://explorer-bradbury.genlayer.com/address/0xc335b7326D70067373b7c8c88f42803BcDcC1D5C) | cumulative contributor rankings |
 
 Deployment and authorization transactions:
 
 | Action | Tx |
 | --- | --- |
-| Deploy `TaskManager` | [`0x79823a4f2221f1d8a5e7f5093c9025cfc0c1f753d8665f2ed83e8cbb6c3e9862`](https://explorer-bradbury.genlayer.com/tx/0x79823a4f2221f1d8a5e7f5093c9025cfc0c1f753d8665f2ed83e8cbb6c3e9862) |
-| Deploy `ProofOfImpact v3.0.2` | [`0x14d959edbfacf87944f08210fa7247d9bb738069260866e9a72d4a92d1ca93b6`](https://explorer-bradbury.genlayer.com/tx/0x14d959edbfacf87944f08210fa7247d9bb738069260866e9a72d4a92d1ca93b6) |
-| Deploy `GlobalLeaderboard` | [`0xcaf7d3687e71af61cd768e405d3ac6a794a362872c81d941836cae977bae16b2`](https://explorer-bradbury.genlayer.com/tx/0xcaf7d3687e71af61cd768e405d3ac6a794a362872c81d941836cae977bae16b2) |
-| Authorize `ProofOfImpact` in `TaskManager` | [`0x1428c5e94868b67c264ebb1244ce19920fbdb0f2fd99cdde83c29a711d75273e`](https://explorer-bradbury.genlayer.com/tx/0x1428c5e94868b67c264ebb1244ce19920fbdb0f2fd99cdde83c29a711d75273e) |
-| Authorize `ProofOfImpact` in `GlobalLeaderboard` | [`0x07110571a5ddd910ef6eb7b5907e4ee98fbaba67fe1e616df053246d688c642c`](https://explorer-bradbury.genlayer.com/tx/0x07110571a5ddd910ef6eb7b5907e4ee98fbaba67fe1e616df053246d688c642c) |
+| Deploy `TaskManager` | [`0x370a653bebc20da0bad82b1ddaff0a1e105fa74c593d0f40c33c62741b4952fa`](https://explorer-bradbury.genlayer.com/tx/0x370a653bebc20da0bad82b1ddaff0a1e105fa74c593d0f40c33c62741b4952fa) |
+| Deploy `ProofOfImpact v3.0.3` | [`0x4660fdc7ea8dd87353e732981c9c4477edf0db25ac0901a9c9600356767371dd`](https://explorer-bradbury.genlayer.com/tx/0x4660fdc7ea8dd87353e732981c9c4477edf0db25ac0901a9c9600356767371dd) |
+| Deploy `GlobalLeaderboard` | [`0x4d86e46fdedfd082f222baf02159ff5514e438bb1f1e76c167d3018f80851d4f`](https://explorer-bradbury.genlayer.com/tx/0x4d86e46fdedfd082f222baf02159ff5514e438bb1f1e76c167d3018f80851d4f) |
+| Authorize `ProofOfImpact` in `TaskManager` | [`0x97fe46b8cb98ee6133b41347ad938165473ac2e66c1e221662f7ae99d7abc2d2`](https://explorer-bradbury.genlayer.com/tx/0x97fe46b8cb98ee6133b41347ad938165473ac2e66c1e221662f7ae99d7abc2d2) |
+| Authorize `ProofOfImpact` in `GlobalLeaderboard` | [`0x49e334ae79078382cf929876e74c432bc8f05c6cc8b89230c42354280bff6086`](https://explorer-bradbury.genlayer.com/tx/0x49e334ae79078382cf929876e74c432bc8f05c6cc8b89230c42354280bff6086) |
 
 Legacy note: the older contract at
 `0xD931392177067735378b26e5EE37851284c19d69` is no longer the active
@@ -118,33 +118,10 @@ frontend target.
 
 ## Verified On-Chain Tests
 
-`ProofOfImpact v3.0.2` was tested directly on Bradbury with real transactions.
+`ProofOfImpact v3.0.3` was smoke-tested directly on Bradbury with real
+transactions.
 
-### Negative control
-
-Task: require a direct raw license file.
-
-Submitted URL:
-
-```text
-https://raw.githubusercontent.com/facebook/react/main/packages/react/index.js
-```
-
-Expected: this is a source file, not a direct license file.
-
-Result:
-
-| Field | Value |
-| --- | --- |
-| Submission | `task-5`, `sub-0` |
-| Score | `0` |
-| Grade | `F` |
-| Risk flags | `["not_direct_license_file"]` |
-| Evaluation tx | [`0x600d2e6a433677c5b9c3f7a1288041a35f28baa3bb8dd1cc064bb4573afdc47f`](https://explorer-bradbury.genlayer.com/tx/0x600d2e6a433677c5b9c3f7a1288041a35f28baa3bb8dd1cc064bb4573afdc47f) |
-
-### Positive control
-
-Task: require a direct raw license file containing the full license terms.
+Task: require a direct raw MIT license file containing the full license terms.
 
 Submitted URL:
 
@@ -156,17 +133,19 @@ Result:
 
 | Field | Value |
 | --- | --- |
-| Submission | `task-6`, `sub-1` |
+| Submission | `task-0`, `sub-0` |
 | Score | `100` |
 | Grade | `A` |
 | Points earned | `100` |
-| Evaluation tx | [`0xc6da961627490e9afb702d752228604ef8792ad453f99c8642321076563ca69a`](https://explorer-bradbury.genlayer.com/tx/0xc6da961627490e9afb702d752228604ef8792ad453f99c8642321076563ca69a) |
+| Create task tx | [`0xc485c3e25ce24cf6373843c60a9eb552f98d5bc267a0ef40227c730a91693bf1`](https://explorer-bradbury.genlayer.com/tx/0xc485c3e25ce24cf6373843c60a9eb552f98d5bc267a0ef40227c730a91693bf1) |
+| Submit tx | [`0xa6fc0264606d0bcdd76d7896d032180f2af5a0923d3069c7e360ae17737c0b3f`](https://explorer-bradbury.genlayer.com/tx/0xa6fc0264606d0bcdd76d7896d032180f2af5a0923d3069c7e360ae17737c0b3f) |
+| Evaluation tx | [`0x3e9537db5614aa47fad53bfc1bb0b3944f98b73dcc35f9c4d76f47485660995a`](https://explorer-bradbury.genlayer.com/tx/0x3e9537db5614aa47fad53bfc1bb0b3944f98b73dcc35f9c4d76f47485660995a) |
 
 Leaderboard verification:
 
 ```text
 GlobalLeaderboard.get_all_entries()
-=> [{"address":"0xb42c1161bb124b9ceb7fd2439cbf3538e39b0619","score":375,"rank":1}]
+=> [{"address":"0xb42c1161bb124b9ceb7fd2439cbf3538e39b0619","score":100,"rank":1}]
 ```
 
 ---
@@ -216,16 +195,17 @@ rebuild rankings by scraping every historical submission.
 
 The evaluation path is intentionally layered.
 
-### 1. Deterministic pre-checks
+### 1. Input validation
 
-The contract first validates evidence shape:
+The contract first validates basic submission shape:
 
-- URL must be valid.
-- Task-specific evidence gates can reject invalid proof immediately.
-- License tasks require direct `LICENSE`, `LICENCE`, `COPYING`, or `NOTICE` files.
+- URL must start with `http`, `https`, or `ipfs`.
+- title, description, criteria, and submission text must be non-empty.
+- text fields must stay inside contract length limits.
 
-This is what makes irrelevant repository files return `0` quickly instead of
-waiting for a long validator run.
+The contract does not use hardcoded repository rules or deterministic
+task-specific scoring gates. The final score is produced by validator consensus
+over the fetched evidence and task criteria.
 
 ### 2. Web evidence fetch
 
@@ -278,17 +258,17 @@ src/lib/contract.js
 Production defaults:
 
 ```js
-const CONTRACT_ADDRESS = '0x8D8117828E401bB674295963e0acbB4C7Af257bc'
-const TASK_MANAGER_CONTRACT = '0xBba8FB0F21C1ebD7BDc32A43f7525fCbECF72aBc'
-const LEADERBOARD_CONTRACT = '0x0EB4407460b232cB5BAC868f1296641419Fc3711'
+const CONTRACT_ADDRESS = '0x4af859b108124A791f1450D3Ee1E54790a6eCb76'
+const TASK_MANAGER_CONTRACT = '0x90Cad9eBfeCcCb1Dafe7070b93a89dfDe9E4Bd50'
+const LEADERBOARD_CONTRACT = '0xc335b7326D70067373b7c8c88f42803BcDcC1D5C'
 ```
 
 Build-time overrides:
 
 ```bash
-VITE_TASK_MANAGER_ADDRESS=0xBba8FB0F21C1ebD7BDc32A43f7525fCbECF72aBc
-VITE_PROOF_OF_IMPACT_ADDRESS=0x8D8117828E401bB674295963e0acbB4C7Af257bc
-VITE_GLOBAL_LEADERBOARD_ADDRESS=0x0EB4407460b232cB5BAC868f1296641419Fc3711
+VITE_TASK_MANAGER_ADDRESS=0x90Cad9eBfeCcCb1Dafe7070b93a89dfDe9E4Bd50
+VITE_PROOF_OF_IMPACT_ADDRESS=0x4af859b108124A791f1450D3Ee1E54790a6eCb76
+VITE_GLOBAL_LEADERBOARD_ADDRESS=0xc335b7326D70067373b7c8c88f42803BcDcC1D5C
 ```
 
 The app uses:
@@ -370,9 +350,9 @@ npx --yes genlayer@latest network info
 Read deployed contract state:
 
 ```bash
-npx --yes genlayer@latest call 0x8D8117828E401bB674295963e0acbB4C7Af257bc get_version
-npx --yes genlayer@latest call 0xBba8FB0F21C1ebD7BDc32A43f7525fCbECF72aBc get_authorized_submitter
-npx --yes genlayer@latest call 0x0EB4407460b232cB5BAC868f1296641419Fc3711 get_authorized_writer
+npx --yes genlayer@latest call 0x4af859b108124A791f1450D3Ee1E54790a6eCb76 get_version
+npx --yes genlayer@latest call 0x90Cad9eBfeCcCb1Dafe7070b93a89dfDe9E4Bd50 get_authorized_submitter
+npx --yes genlayer@latest call 0xc335b7326D70067373b7c8c88f42803BcDcC1D5C get_authorized_writer
 ```
 
 Lint contracts:
@@ -383,7 +363,8 @@ genvm-lint check contracts/TaskManager.py
 genvm-lint check contracts/global_leaderboard.py
 ```
 
-The currently published contracts pass GenVM lint and the frontend passes:
+The currently published contracts deploy successfully on Bradbury, and the
+frontend passes:
 
 ```bash
 npm run build

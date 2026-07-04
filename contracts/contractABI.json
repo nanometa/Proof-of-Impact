@@ -6,11 +6,11 @@
   "architecture": "v3-smart-async-3-contracts",
   "contracts": {
     "TaskManager": {
-      "address": "0xBba8FB0F21C1ebD7BDc32A43f7525fCbECF72aBc",
-      "deployment_tx": "0x79823a4f2221f1d8a5e7f5093c9025cfc0c1f753d8665f2ed83e8cbb6c3e9862",
+      "address": "0x90Cad9eBfeCcCb1Dafe7070b93a89dfDe9E4Bd50",
+      "deployment_tx": "0x370a653bebc20da0bad82b1ddaff0a1e105fa74c593d0f40c33c62741b4952fa",
       "version": "3.0.0",
-      "authorized_submitter": "0x8D8117828E401bB674295963e0acbB4C7Af257bc",
-      "authorized_submitter_tx": "0x1428c5e94868b67c264ebb1244ce19920fbdb0f2fd99cdde83c29a711d75273e",
+      "authorized_submitter": "0x4af859b108124A791f1450D3Ee1E54790a6eCb76",
+      "authorized_submitter_tx": "0x97fe46b8cb98ee6133b41347ad938165473ac2e66c1e221662f7ae99d7abc2d2",
       "write_methods": [
         { "name": "create_task", "args": ["title: str", "description: str", "criteria: str", "reward_points: uint256"], "returns": "str (task_id)" },
         { "name": "update_task_metadata", "args": ["task_id: str", "title: str", "description: str", "criteria: str"], "returns": "void" },
@@ -29,9 +29,9 @@
       ]
     },
     "ProofOfImpact": {
-      "address": "0x8D8117828E401bB674295963e0acbB4C7Af257bc",
-      "deployment_tx": "0x14d959edbfacf87944f08210fa7247d9bb738069260866e9a72d4a92d1ca93b6",
-      "version": "3.0.2",
+      "address": "0x4af859b108124A791f1450D3Ee1E54790a6eCb76",
+      "deployment_tx": "0x4660fdc7ea8dd87353e732981c9c4477edf0db25ac0901a9c9600356767371dd",
+      "version": "3.0.3",
       "constructor_args": [
         "task_manager_address: Address",
         "leaderboard_address: Address"
@@ -60,10 +60,10 @@
       ]
     },
     "GlobalLeaderboard": {
-      "address": "0x0EB4407460b232cB5BAC868f1296641419Fc3711",
-      "deployment_tx": "0xcaf7d3687e71af61cd768e405d3ac6a794a362872c81d941836cae977bae16b2",
-      "authorized_writer": "0x8D8117828E401bB674295963e0acbB4C7Af257bc",
-      "authorized_writer_tx": "0x07110571a5ddd910ef6eb7b5907e4ee98fbaba67fe1e616df053246d688c642c",
+      "address": "0xc335b7326D70067373b7c8c88f42803BcDcC1D5C",
+      "deployment_tx": "0x4d86e46fdedfd082f222baf02159ff5514e438bb1f1e76c167d3018f80851d4f",
+      "authorized_writer": "0x4af859b108124A791f1450D3Ee1E54790a6eCb76",
+      "authorized_writer_tx": "0x49e334ae79078382cf929876e74c432bc8f05c6cc8b89230c42354280bff6086",
       "write_methods": [
         { "name": "set_authorized_writer", "args": ["writer: Address"], "returns": "void" },
         { "name": "record_score", "args": ["contributor: str", "score: uint256"], "returns": "void" },
