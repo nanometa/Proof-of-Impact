@@ -4,33 +4,21 @@ import { loadAllTasks, getTaskCount, getSubmissionCount } from '../lib/contract'
 import { truncateAddress } from '../lib/utils'
 import Spinner from '../components/Spinner'
 
-const HIDDEN_KEY = 'gl_hidden_tasks'
-
-function getHidden() {
-  try { return new Set(JSON.parse(localStorage.getItem(HIDDEN_KEY) || '[]')) } catch { return new Set() }
-}
-
-function setHidden(set) {
-  localStorage.setItem(HIDDEN_KEY, JSON.stringify([...set]))
-}
-
 export default function HomePage() {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
   const [taskCount, setTaskCount] = useState(0)
   const [subCount, setSubCount] = useState(0)
-  const [hidden, setHiddenState] = useState(getHidden())
-  const [showHidden, setShowHidden] = useState(false)
 
   useEffect(() => {
     async function load() {
       try {
-        const [allTasks, tc, sc] = await Promise.all([
-          loadAllTasks(),
-          getTaskCount(),
-          getSubmissionCount(),
-        ])
+        localStorage.removeItem('gl_hidden_tasks')
+        const tc = await getTaskCount()
+        const allTasks = await loadAllTasks(tc)
+        const sc = await getSubmissionCount()
+
         setTasks(allTasks)
         setTaskCount(tc)
         setSubCount(sc)
@@ -43,25 +31,7 @@ export default function HomePage() {
     load()
   }, [])
 
-  function hideTask(id) {
-    const next = new Set(hidden)
-    next.add(id)
-    setHidden(next)
-    setHiddenState(next)
-  }
-
-  function unhideAll() {
-    setHidden(new Set())
-    setHiddenState(new Set())
-  }
-
-  // Filter pipeline
-  let visible = tasks
-  if (!showHidden) {
-    visible = visible.filter(t => !hidden.has(t.task_id))
-  }
-  const filtered = filter === 'all' ? visible : visible.filter(t => t.status === filter)
-  const hiddenCount = tasks.length - visible.length
+  const filtered = filter === 'all' ? tasks : tasks.filter(t => t.status === filter)
 
   return (
     <div className="relative bg-transparent flex-1 w-full pb-16">
@@ -110,7 +80,7 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* Filter tabs + hidden toggle */}
+        {/* Filter tabs */}
         <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
           <div className="flex items-center gap-1.5 bg-white/5 rounded-full p-1 border border-white/10">
             {['all', 'open', 'closed'].map(f => (
@@ -129,22 +99,6 @@ export default function HomePage() {
           </div>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-white/60">{filtered.length} task{filtered.length !== 1 ? 's' : ''}</span>
-            {hiddenCount > 0 && (
-              <button
-                onClick={() => setShowHidden(!showHidden)}
-                className="text-xs text-white/60 hover:text-[#8B5CF6] transition-colors font-medium"
-              >
-                {showHidden ? `Hide spam (${hiddenCount})` : `Show hidden (${hiddenCount})`}
-              </button>
-            )}
-            {showHidden && hidden.size > 0 && (
-              <button
-                onClick={unhideAll}
-                className="text-xs text-[#8B5CF6] hover:text-[#8B5CF6]/85 transition-colors font-medium"
-              >
-                Reset
-              </button>
-            )}
           </div>
         </div>
 
@@ -172,18 +126,7 @@ export default function HomePage() {
                 className="relative bg-white/5 border border-white/10 rounded-2xl p-6 transition-all hover:bg-white/10 hover:border-white/20 hover:shadow-[0_0_30px_rgba(139,92,246,0.15)] group fade-in-up duration-300"
                 style={{ animationDelay: `${i * 50}ms` }}
               >
-                {/* Hide button (using a clean SVG close icon, no text cross) */}
-                <button
-                  onClick={(e) => { e.preventDefault(); hideTask(task.task_id) }}
-                  className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/5 border border-white/10 text-white/40 hover:text-red-400 hover:border-red-400/30 hover:bg-red-950/20 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center"
-                  title="Hide from list"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-
-                <div className="flex items-start justify-between gap-3 mb-3 pr-6">
+                <div className="flex items-start justify-between gap-3 mb-3">
                   <h3 className="font-heading font-semibold text-white group-hover:text-purple transition-colors line-clamp-1 text-[15px] tracking-wide">
                     {task.title}
                   </h3>
