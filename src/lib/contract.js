@@ -377,6 +377,22 @@ export async function waitForTaskSubmissions(taskId, previousIds = [], timeoutMs
   return loadSubmissionIdsForTask(taskId)
 }
 
+export async function waitForTaskCount(previousCount = 0, timeoutMs = 45_000) {
+  const target = Number(previousCount)
+  const deadline = Date.now() + timeoutMs
+
+  while (Date.now() < deadline) {
+    clearReadCache()
+    const count = await getTaskCount()
+
+    if (count > target) return count
+    await sleep(2_500)
+  }
+
+  clearReadCache()
+  return getTaskCount()
+}
+
 export async function loadSubmissionsForTask(taskId) {
   const ids = await loadSubmissionIdsForTask(taskId)
 
