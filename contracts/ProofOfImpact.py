@@ -4,7 +4,7 @@ from genlayer import *
 import json
 
 
-CONTRACT_VERSION = "3.0.2"
+CONTRACT_VERSION = "3.0.3"
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
 TASK_OPEN = "open"
@@ -196,463 +196,33 @@ def build_evaluation_prompt(
     url_content: str,
 ) -> str:
     return (
-        "Evaluate a proof-of-work submission. Be strict, concise, and return JSON only.\n\n"
-        f"Task title: {task_title}\n"
-        f"Task criteria: {task_criteria}\n"
-        f"Maximum reward points: {reward_points}\n\n"
-        f"Submitted work URL: {work_url}\n"
-        f"Worker description: {work_description}\n\n"
-        f"Fetched URL content:\n{url_content}\n\n"
-        "Evaluation rules:\n"
-        "- Score from 0 to 100.\n"
-        "- If the URL cannot be fetched or contains no relevant evidence, score <= 30.\n"
-        "- If the content contradicts the worker description, score <= 50.\n"
-        "- If the work is useful but incomplete, use 50-79.\n"
-        "- If the work fully satisfies the criteria with clear proof, use 80-100.\n"
-        "Return compact valid JSON with these exact keys:\n"
-        "{"
-        '"score": integer, '
-        '"grade": "A"|"B"|"C"|"D"|"F", '
-        '"feedback": string, '
-        '"strengths": string[], '
-        '"improvements": string[], '
-        '"criteria_scores": object, '
-        '"url_valid": boolean, '
-        '"risk_flags": string[]'
-        "}"
+        "You are an expert evaluator for a decentralized work platform. "
+        "Evaluate the submitted work against the task criteria.\n\n"
+        f"Task Title: {task_title}\n"
+        f"Task Description: {task_description}\n"
+        f"Evaluation Criteria: {task_criteria}\n"
+        f"Maximum Reward Points: {reward_points}\n\n"
+        f"Submitted Work URL: {work_url}\n"
+        f"Worker Description: {work_description}\n\n"
+        f"Actual content fetched from the URL:\n{url_content}\n\n"
+        "IMPORTANT RULES:\n"
+        "- Base your evaluation primarily on the fetched content, not just the description.\n"
+        "- If the URL could not be fetched or content is empty, penalize heavily (score <= 30).\n"
+        "- If the fetched content does not match the worker description or task criteria, penalize (score <= 50).\n"
+        "- If the fetched content matches the description and satisfies the criteria, reward accordingly.\n"
+        "- Do not require repository-specific hardcoded rules. Judge the evidence generally.\n"
+        "- Do not penalize a correct raw evidence file without a clear reason.\n\n"
+        "Respond with a JSON object containing exactly:\n"
+        '- "score": integer from 0 to 100\n'
+        '- "grade": one of "A", "B", "C", "D", "F"\n'
+        '- "feedback": a non-empty string summarizing the evaluation\n'
+        '- "strengths": ["<strength1>", "<strength2>"]\n'
+        '- "improvements": ["<improvement1>", "<improvement2>"]\n'
+        '- "criteria_scores": {"overall": <0-100>}\n'
+        '- "url_valid": true if URL was accessible and relevant, false otherwise\n'
+        '- "risk_flags": [] or short risk strings\n\n'
+        "Return ONLY the JSON object, no additional text."
     )
-
-
-def same_pass_band(left_score: int, right_score: int) -> bool:
-    if (left_score >= 60) != (right_score >= 60):
-        return False
-    if (left_score >= 80) != (right_score >= 80):
-        return False
-    return True
-
-
-def evaluation_matches(leader: dict, validator: dict) -> bool:
-    try:
-        leader_score = int(leader.get("score", 0))
-        validator_score = int(validator.get("score", 0))
-    except Exception:
-        return False
-
-    if bool(leader.get("url_valid", False)) != bool(validator.get("url_valid", False)):
-        return False
-    if not same_pass_band(leader_score, validator_score):
-        return False
-    if abs(leader_score - validator_score) > 15:
-        return False
-    return True
-
-
-def grade_from_score(score: int) -> str:
-    if score >= 90:
-        return "A"
-    if score >= 80:
-        return "B"
-    if score >= 70:
-        return "C"
-    if score >= 60:
-        return "D"
-    return "F"
-
-
-def normalize_signal_text(value: str) -> str:
-    text = str(value).lower()
-    for separator in "/\\-_.,:;()[]{}|?&=#\n\t\r":
-        text = text.replace(separator, " ")
-    return " " + " ".join(text.split()) + " "
-
-
-def has_signal(text: str, term: str) -> bool:
-    needle = normalize_signal_text(term).strip()
-    if not needle:
-        return False
-    return (" " + needle + " ") in text
-
-
-def count_signals(text: str, terms: list) -> int:
-    count = 0
-    for term in terms:
-        if has_signal(text, str(term)):
-            count += 1
-    return count
-
-
-def keyword_score(text: str, terms: list) -> int:
-    if len(terms) == 0:
-        return 0
-    hits = count_signals(text, terms)
-    return min(100, (hits * 100) // len(terms))
-
-
-def bounded_score(value: int) -> int:
-    if value < 0:
-        return 0
-    if value > 100:
-        return 100
-    return value
-
-
-def extract_repo_hint(raw_task: str, raw_work: str) -> str:
-    cleaned = (
-        raw_task.replace("(", " ")
-        .replace(")", " ")
-        .replace("[", " ")
-        .replace("]", " ")
-        .replace(",", " ")
-    )
-    for token in cleaned.split():
-        repo = token.strip().strip(".:;\"'")
-        if "/" in repo and len(repo) >= 5 and repo in raw_work:
-            return repo
-    return ""
-
-
-def evaluate_ai_gpu_task(work_text: str, raw_work: str) -> dict:
-    inference_terms = [
-        "ai",
-        "llm",
-        "inference",
-        "inferencing",
-        "serving",
-        "serve",
-        "model",
-        "models",
-        "runtime",
-        "engine",
-    ]
-    gpu_terms = [
-        "gpu",
-        "cuda",
-        "hip",
-        "kernel",
-        "kernels",
-        "attention",
-        "triton",
-        "tensor",
-        "accelerator",
-    ]
-    perf_terms = [
-        "throughput",
-        "latency",
-        "batching",
-        "batch",
-        "quantization",
-        "quantized",
-        "memory",
-        "optimization",
-        "optimizations",
-        "optimized",
-        "performance",
-        "pagedattention",
-    ]
-
-    inference_score = keyword_score(work_text, inference_terms)
-    gpu_score = keyword_score(work_text, gpu_terms)
-    perf_score = keyword_score(work_text, perf_terms)
-    inference_hits = count_signals(work_text, inference_terms)
-    gpu_hits = count_signals(work_text, gpu_terms)
-    perf_hits = count_signals(work_text, perf_terms)
-    has_required_domain = inference_hits >= 2 and (gpu_hits + perf_hits) >= 2
-
-    if not has_required_domain:
-        score = 0
-        risk_flags = [
-            "insufficient_ai_inference_evidence",
-            "insufficient_gpu_or_performance_evidence",
-        ]
-        feedback = (
-            "Submission does not provide enough AI/LLM inference and "
-            "GPU/performance optimization evidence for this task."
-        )
-    else:
-        category_bonus = 10 if gpu_hits > 0 and perf_hits > 0 else 0
-        score = bounded_score(
-            inference_hits * 18 + gpu_hits * 14 + perf_hits * 10 + category_bonus
-        )
-        risk_flags = []
-        feedback = (
-            "Submission matches AI/LLM inference and GPU optimization signals "
-            "from the task criteria."
-        )
-
-    return {
-        "score": score,
-        "grade": grade_from_score(score),
-        "feedback": feedback,
-        "strengths": [
-            "URL format is valid",
-            "Evaluation used deterministic task and submission signals",
-        ],
-        "improvements": [
-            "Include specific files, pull requests, or benchmarks when possible",
-            "Mention concrete inference and GPU optimization evidence",
-        ],
-        "criteria_scores": {
-            "ai_llm_inference_serving": inference_score,
-            "gpu_kernel_performance": gpu_score,
-            "batching_quantization_memory": perf_score,
-            "task_domain_relevance": 100 if has_required_domain else 0,
-        },
-        "url_valid": True,
-        "risk_flags": risk_flags,
-    }
-
-
-def collect_general_terms(task_text: str) -> list:
-    stopwords = [
-        "submission",
-        "submit",
-        "must",
-        "should",
-        "score",
-        "receive",
-        "work",
-        "task",
-        "repo",
-        "repository",
-        "github",
-        "link",
-        "links",
-        "with",
-        "from",
-        "that",
-        "this",
-        "about",
-        "find",
-        "verify",
-        "describe",
-        "description",
-        "criteria",
-    ]
-    terms = []
-    for token in task_text.split():
-        word = token.strip()
-        if len(word) < 4:
-            continue
-        if word in stopwords:
-            continue
-        duplicate = False
-        for existing in terms:
-            if existing == word:
-                duplicate = True
-        if not duplicate:
-            terms.append(word)
-        if len(terms) >= 10:
-            break
-    return terms
-
-
-def evaluate_general_task(task_text: str, work_text: str, raw_task: str, raw_work: str) -> dict:
-    repo_hint = extract_repo_hint(raw_task, raw_work)
-    terms = collect_general_terms(task_text)
-    term_score = keyword_score(work_text, terms)
-    repo_score = 100 if repo_hint else 0
-
-    score = term_score
-    if repo_score == 100:
-        score = max(score, 80)
-        if term_score >= 35:
-            score = max(score, 95)
-    elif term_score < 25:
-        score = 0
-
-    return {
-        "score": score,
-        "grade": grade_from_score(score),
-        "feedback": "Submission scored with deterministic overlap against task criteria.",
-        "strengths": [
-            "URL format is valid",
-            "Evaluation avoids external fetch and validator LLM timeouts",
-        ],
-        "improvements": [
-            "Add task-specific keywords in the submission description",
-            "Use the exact repository requested by the task when applicable",
-        ],
-        "criteria_scores": {
-            "repo_match": repo_score,
-            "criteria_keyword_match": term_score,
-            "task_fit": score,
-        },
-        "url_valid": True,
-        "risk_flags": [] if score > 0 else ["low_task_relevance"],
-    }
-
-
-def fast_evaluate_submission(
-    task_title: str,
-    task_description: str,
-    task_criteria: str,
-    work_url: str,
-    work_description: str,
-) -> dict:
-    raw_task = str(task_title + " " + task_description + " " + task_criteria).lower()
-    raw_work = str(work_url + " " + work_description).lower()
-    task_text = normalize_signal_text(raw_task)
-    work_text = normalize_signal_text(raw_work)
-
-    if not (
-        raw_work.startswith("http://")
-        or raw_work.startswith("https://")
-        or raw_work.startswith("ipfs://")
-    ):
-        return make_evaluation_fallback("URL format is invalid.")
-
-    ai_task_terms = [
-        "ai",
-        "llm",
-        "inference",
-        "gpu",
-        "cuda",
-        "hip",
-        "kernel",
-        "attention",
-        "batching",
-        "quantization",
-        "memory",
-    ]
-    if count_signals(task_text, ai_task_terms) >= 3:
-        return evaluate_ai_gpu_task(work_text, raw_work)
-
-    return evaluate_general_task(task_text, work_text, raw_task, raw_work)
-
-
-def is_license_verification_task(task_text: str) -> bool:
-    normalized = normalize_signal_text(task_text)
-    return count_signals(
-        normalized,
-        [
-            "license",
-            "licence",
-            "license file",
-            "license type",
-            "license terms",
-            "mit license",
-            "apache license",
-            "gpl",
-            "copying",
-        ],
-    ) >= 1
-
-
-def is_direct_license_url(work_url: str) -> bool:
-    lowered = str(work_url).lower().split("?")[0].split("#")[0]
-    parts = lowered.replace("\\", "/").split("/")
-    filename = parts[-1] if len(parts) > 0 else lowered
-    return (
-        filename == "license"
-        or filename == "licence"
-        or filename == "copying"
-        or filename == "notice"
-        or filename.startswith("license.")
-        or filename.startswith("licence.")
-        or filename.startswith("copying.")
-        or filename.startswith("notice.")
-        or "license" in filename
-        or "licence" in filename
-    )
-
-
-def content_has_full_license_terms(url_content: str) -> bool:
-    content = str(url_content).lower()
-    title_hit = (
-        "mit license" in content
-        or "apache license" in content
-        or "gnu general public license" in content
-        or "bsd license" in content
-        or "mozilla public license" in content
-    )
-    terms_hit = (
-        "permission is hereby granted" in content
-        or "limitations under the license" in content
-        or "redistribution and use" in content
-        or "without warranty" in content
-    )
-    return title_hit and terms_hit
-
-
-def apply_evidence_gates(
-    result: dict,
-    task_title: str,
-    task_description: str,
-    task_criteria: str,
-    work_url: str,
-    url_content: str,
-) -> dict:
-    task_text = str(task_title + " " + task_description + " " + task_criteria)
-
-    if is_license_verification_task(task_text):
-        if not is_direct_license_url(work_url):
-            result["score"] = 0
-            result["grade"] = "F"
-            result["feedback"] = (
-                "Submission is not a direct license file. A source file or "
-                "README that only references a license is not enough evidence "
-                "for this license verification task."
-            )
-            criteria_scores = result.get("criteria_scores", {})
-            if not isinstance(criteria_scores, dict):
-                criteria_scores = {}
-            criteria_scores["direct_license_file"] = 0
-            criteria_scores["license_terms_present"] = 0
-            result["criteria_scores"] = criteria_scores
-
-            flags = result.get("risk_flags", [])
-            if not isinstance(flags, list):
-                flags = []
-            flags.append("not_direct_license_file")
-            result["risk_flags"] = flags
-            return result
-
-        if not content_has_full_license_terms(url_content):
-            result["score"] = min(int(result.get("score", 0)), 30)
-            result["grade"] = grade_from_score(int(result["score"]))
-            result["feedback"] = (
-                "The URL looks like a license file, but the fetched content "
-                "does not contain enough full license terms for a strong score."
-            )
-            flags = result.get("risk_flags", [])
-            if not isinstance(flags, list):
-                flags = []
-            flags.append("missing_full_license_terms")
-            result["risk_flags"] = flags
-
-    return result
-
-
-def precheck_evidence_rejection(
-    task_title: str,
-    task_description: str,
-    task_criteria: str,
-    work_url: str,
-) -> dict:
-    task_text = str(task_title + " " + task_description + " " + task_criteria)
-    if is_license_verification_task(task_text) and not is_direct_license_url(work_url):
-        return {
-            "score": 0,
-            "grade": "F",
-            "feedback": (
-                "Submission is not a direct license file. A source file, README, "
-                "or other document that only references a license is not valid "
-                "evidence for this task."
-            ),
-            "strengths": ["URL format is valid"],
-            "improvements": [
-                "Submit a direct raw LICENSE, LICENCE, COPYING, or NOTICE file",
-                "Include the full license terms in the submitted evidence",
-            ],
-            "criteria_scores": {
-                "direct_license_file": 0,
-                "license_terms_present": 0,
-                "task_fit": 0,
-            },
-            "url_valid": True,
-            "risk_flags": ["not_direct_license_file"],
-        }
-    return {}
 
 
 def smart_evaluate_submission(
@@ -663,61 +233,46 @@ def smart_evaluate_submission(
     work_url: str,
     work_description: str,
 ) -> dict:
-    precheck = precheck_evidence_rejection(
-        task_title,
-        task_description,
-        task_criteria,
-        work_url,
-    )
-    if precheck:
-        return precheck
-
-    def run_ai_review() -> dict:
-        url_content = ""
+    def evaluate_single_source() -> str:
         try:
             rendered = gl.nondet.web.render(work_url, mode="text")
             url_content = str(rendered)[:MAX_FETCHED_CONTENT_LENGTH]
         except Exception:
-            url_content = ""
+            url_content = "URL could not be fetched or is inaccessible."
 
         if not url_content.strip():
             url_content = "URL content unavailable or empty during review."
 
-        prompt = build_evaluation_prompt(
-            task_title,
-            task_description,
-            task_criteria,
-            reward_points,
-            work_url,
-            work_description,
-            url_content,
-        )
-        raw_result = gl.nondet.exec_prompt(prompt, response_format="json")
-        result = parse_evaluation_result(raw_result)
-        result = apply_evidence_gates(
-            result,
-            task_title,
-            task_description,
-            task_criteria,
-            work_url,
-            url_content,
-        )
+        try:
+            prompt = build_evaluation_prompt(
+                task_title,
+                task_description,
+                task_criteria,
+                reward_points,
+                work_url,
+                work_description,
+                url_content,
+            )
+            raw_result = gl.nondet.exec_prompt(prompt, response_format="json")
+            result = parse_evaluation_result(raw_result)
+        except Exception:
+            result = make_evaluation_fallback("Evaluation failed unexpectedly.")
 
-        if not result.get("url_valid", False):
-            result["score"] = min(int(result.get("score", 0)), 30)
-            result["grade"] = grade_from_score(int(result["score"]))
+        return json.dumps(result, sort_keys=True)
 
-        return result
+    result_json = gl.eq_principle.prompt_comparative(
+        evaluate_single_source,
+        principle=(
+            "The score must be within 10 points. "
+            "The pass/fail band must match. "
+            "The grade should match unless the score is near a boundary. "
+            "url_valid must match exactly. "
+            "Feedback, strengths, improvements, criteria_scores, and risk_flags "
+            "must be semantically similar."
+        ),
+    )
 
-    def validate_ai_review(leaders_res: gl.vm.Result) -> bool:
-        if not isinstance(leaders_res, gl.vm.Return):
-            return False
-
-        leader_result = parse_evaluation_result(leaders_res.calldata)
-        validator_result = run_ai_review()
-        return evaluation_matches(leader_result, validator_result)
-
-    return gl.vm.run_nondet_unsafe(run_ai_review, validate_ai_review)
+    return parse_evaluation_result(result_json)
 
 
 class ProofOfImpact(gl.Contract):
