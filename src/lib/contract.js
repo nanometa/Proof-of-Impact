@@ -29,6 +29,8 @@ const EXPLORER_BASE = 'https://explorer-bradbury.genlayer.com/tx'
 const DATA_MODE = 'genlayer'
 const POLL_INTERVAL = 3000
 const MAX_TIMEOUT = 600000
+const READ_RETRIES = 3
+const RATE_LIMIT_DELAY = 1500
 
 export { CONTRACT_ADDRESS, DATA_MODE, EXPLORER_BASE, LEADERBOARD_CONTRACT, TASK_MANAGER_CONTRACT }
 
@@ -270,17 +272,29 @@ async function safeReadFrom(address, fn, args = []) {
   const cached = getCached(cacheKey)
   if (cached !== undefined) return cached
 
-  try {
-    const result = await getReadClient().readContract({
-      address,
-      functionName: fn,
-      args,
-    })
-    return setCache(cacheKey, result)
-  } catch (e) {
-    console.warn(`[GenLayer] read ${fn} failed:`, e.message)
-    return null
+  for (let attempt = 0; attempt <= READ_RETRIES; attempt += 1) {
+    try {
+      const result = await getReadClient().readContract({
+        address,
+        functionName: fn,
+        args,
+      })
+      return setCache(cacheKey, result)
+    } catch (e) {
+      const message = e?.message || String(e)
+      const canRetry = /rate limit|limit exceeded|request exceeds/i.test(message)
+
+      if (canRetry && attempt < READ_RETRIES) {
+        await sleep(RATE_LIMIT_DELAY * (attempt + 1))
+        continue
+      }
+
+      console.warn(`[GenLayer] read ${fn} failed:`, message)
+      return null
+    }
   }
+
+  return null
 }
 
 async function safeProofRead(fn, args = []) {
@@ -333,14 +347,18 @@ export async function getSubmissionCount() {
   return result != null ? Number(result) : 0
 }
 
-export async function loadAllTasks() {
-  const count = await getTaskCount()
+export async function loadAllTasks(countOverride = null) {
+  const count = countOverride != null ? Number(countOverride) : await getTaskCount()
   if (!count) return []
 
-  const tasks = await Promise.all(
-    Array.from({ length: count }, (_, index) => getTask(`task-${index}`).catch(() => null)),
-  )
-  return tasks.filter(Boolean)
+  const tasks = []
+  for (let index = 0; index < count; index += 1) {
+    const task = await getTask(`task-${index}`).catch(() => null)
+    if (task) tasks.push(task)
+    if (index < count - 1) await sleep(250)
+  }
+
+  return tasks
 }
 
 function normalizeSubmissionIds(raw) {
@@ -397,7 +415,12 @@ export async function loadSubmissionsForTask(taskId) {
   const ids = await loadSubmissionIdsForTask(taskId)
 
   if (ids.length) {
-    const submissions = await Promise.all(ids.map((id) => getSubmission(id).catch(() => null)))
+    const submissions = []
+    for (const id of ids) {
+      const submission = await getSubmission(id).catch(() => null)
+      if (submission) submissions.push(submission)
+      await sleep(250)
+    }
     const fromTaskManager = submissions.filter(
       (submission) => submission && submission.task_id === taskId,
     )
@@ -407,9 +430,13 @@ export async function loadSubmissionsForTask(taskId) {
   const count = await getSubmissionCount()
   if (!count) return []
 
-  const submissions = await Promise.all(
-    Array.from({ length: count }, (_, index) => getSubmission(`sub-${index}`).catch(() => null)),
-  )
+  const submissions = []
+  for (let index = 0; index < count; index += 1) {
+    const submission = await getSubmission(`sub-${index}`).catch(() => null)
+    if (submission) submissions.push(submission)
+    if (index < count - 1) await sleep(250)
+  }
+
   return submissions.filter((submission) => submission && submission.task_id === taskId)
 }
 
@@ -457,17 +484,21 @@ async function scrapeLeaderboardFromSubmissions() {
   const count = await getSubmissionCount()
   if (!count) return []
 
-  const submissions = await Promise.all(
-    Array.from({ length: count }, (_, index) => getSubmission(`sub-${index}`).catch(() => null)),
-  )
+  const submissions = []
+  for (let index = 0; index < count; index += 1) {
+    const submission = await getSubmission(`sub-${index}`).catch(() => null)
+    if (submission) submissions.push({ submission, subId: `sub-${index}` })
+    if (index < count - 1) await sleep(250)
+  }
+
   const evaluated = submissions
-    .map((submission, index) => (submission?.status === 'evaluated' ? { submission, index } : null))
+    .filter(({ submission }) => submission?.status === 'evaluated')
     .filter(Boolean)
 
   if (!evaluated.length) return []
 
   const scores = await Promise.all(
-    evaluated.map(({ index }) => getScore(`sub-${index}`).catch(() => 0)),
+    evaluated.map(({ subId }) => getScore(subId).catch(() => 0)),
   )
 
   const scoreMap = {}
