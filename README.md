@@ -70,7 +70,7 @@ into an intelligent contract:
 | --- | --- |
 | Reviewers are slow | AI validators evaluate directly from the contract |
 | Subjective scoring is opaque | score, feedback, and criteria scores are stored on-chain |
-| Weak evidence can slip through | deterministic gates reject obvious invalid evidence first |
+| Weak evidence can slip through | AI validators evaluate the fetched evidence against the task criteria |
 | Leaderboards are off-chain | cumulative impact points are stored in `GlobalLeaderboard` |
 | Historical submissions are expensive to scrape | rankings are updated directly by contract writes |
 
@@ -80,7 +80,7 @@ into an intelligent contract:
 
 - **Task Marketplace** - create open tasks with title, description, criteria, and reward points.
 - **AI-Powered Evaluation** - validators score submissions using task-specific evidence and criteria.
-- **Deterministic Evidence Gates** - obvious invalid links can be rejected before expensive AI calls.
+- **Evidence-First AI Scoring** - validators fetch the submitted URL content and score it against the task criteria.
 - **On-Chain Leaderboard** - contributor points are written to a dedicated leaderboard contract.
 - **Detailed Feedback** - every evaluated submission includes strengths, improvements, grade, and risk flags.
 - **Three-Contract Architecture** - task lifecycle, evaluation, and rankings are separated cleanly.
@@ -97,7 +97,7 @@ GenLayer Bradbury Testnet.
 | Contract | Version | Address | Purpose |
 | --- | --- | --- | --- |
 | `TaskManager` | `3.0.0` | [`0xBba8FB0F21C1ebD7BDc32A43f7525fCbECF72aBc`](https://explorer-bradbury.genlayer.com/address/0xBba8FB0F21C1ebD7BDc32A43f7525fCbECF72aBc) | task creation, task status, task counters |
-| `ProofOfImpact` | `3.0.2` | [`0x8D8117828E401bB674295963e0acbB4C7Af257bc`](https://explorer-bradbury.genlayer.com/address/0x8D8117828E401bB674295963e0acbB4C7Af257bc) | submissions, evidence gates, AI evaluation, points |
+| `ProofOfImpact` | `3.0.2` | [`0x8D8117828E401bB674295963e0acbB4C7Af257bc`](https://explorer-bradbury.genlayer.com/address/0x8D8117828E401bB674295963e0acbB4C7Af257bc) | submissions, evidence-first AI evaluation, points |
 | `GlobalLeaderboard` | current | [`0x0EB4407460b232cB5BAC868f1296641419Fc3711`](https://explorer-bradbury.genlayer.com/address/0x0EB4407460b232cB5BAC868f1296641419Fc3711) | cumulative contributor rankings |
 
 Deployment and authorization transactions:
@@ -190,7 +190,7 @@ GlobalLeaderboard.get_all_entries()
         v
   ProofOfImpact
         |
-        | deterministic gates -> web evidence -> AI validator consensus
+        | web evidence -> AI validator consensus
         v
   Evaluation result stored on-chain
         |
@@ -430,7 +430,7 @@ Proof-of-Impact/
 - Richer leaderboard filters by task type and date window.
 - Better evaluation receipts in the UI with explorer links.
 - Optional appeal/re-evaluation workflow.
-- Additional deterministic evidence gates for non-license task families.
+- Better prompt templates for more task families while keeping scoring AI-driven.
 
 ---
 
