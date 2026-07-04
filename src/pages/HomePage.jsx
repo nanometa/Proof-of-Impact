@@ -14,16 +14,6 @@ function setHidden(set) {
   localStorage.setItem(HIDDEN_KEY, JSON.stringify([...set]))
 }
 
-// Detect spammy/test tasks (very short title or description like "." or "test")
-function isSpammy(task) {
-  const t = (task.title || '').trim()
-  const d = (task.description || '').trim()
-  if (t.length < 3) return true
-  if (d.length < 10) return true
-  if (/^[.\-_,!?]+$/.test(t)) return true
-  return false
-}
-
 export default function HomePage() {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
@@ -68,7 +58,7 @@ export default function HomePage() {
   // Filter pipeline
   let visible = tasks
   if (!showHidden) {
-    visible = visible.filter(t => !hidden.has(t.task_id) && !isSpammy(t))
+    visible = visible.filter(t => !hidden.has(t.task_id))
   }
   const filtered = filter === 'all' ? visible : visible.filter(t => t.status === filter)
   const hiddenCount = tasks.length - visible.length
