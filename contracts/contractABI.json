@@ -1,33 +1,82 @@
 {
-  "contract_name": "ProofOfImpact",
-  "address": "0xD931392177067735378b26e5EE37851284c19d69",
   "network": "testnetBradbury",
   "rpc": "https://rpc-bradbury.genlayer.com",
   "chain_id": 4221,
   "explorer": "https://explorer-bradbury.genlayer.com",
-  "write_methods": [
-    {
-      "name": "create_task",
-      "args": ["title: str", "description: str", "criteria: str", "reward_points: int"],
-      "returns": "str (task_id)"
+  "architecture": "v3-smart-async-3-contracts",
+  "contracts": {
+    "TaskManager": {
+      "address": "0xBba8FB0F21C1ebD7BDc32A43f7525fCbECF72aBc",
+      "deployment_tx": "0x79823a4f2221f1d8a5e7f5093c9025cfc0c1f753d8665f2ed83e8cbb6c3e9862",
+      "version": "3.0.0",
+      "authorized_submitter": "0x8D8117828E401bB674295963e0acbB4C7Af257bc",
+      "authorized_submitter_tx": "0x1428c5e94868b67c264ebb1244ce19920fbdb0f2fd99cdde83c29a711d75273e",
+      "write_methods": [
+        { "name": "create_task", "args": ["title: str", "description: str", "criteria: str", "reward_points: uint256"], "returns": "str (task_id)" },
+        { "name": "update_task_metadata", "args": ["task_id: str", "title: str", "description: str", "criteria: str"], "returns": "void" },
+        { "name": "close_task", "args": ["task_id: str"], "returns": "void" },
+        { "name": "reopen_task", "args": ["task_id: str"], "returns": "void" },
+        { "name": "cancel_task", "args": ["task_id: str", "reason: str"], "returns": "void" },
+        { "name": "set_authorized_submitter", "args": ["submitter: Address"], "returns": "void" }
+      ],
+      "view_methods": [
+        { "name": "get_task", "args": ["task_id: str"], "returns": "str (JSON)" },
+        { "name": "get_task_submissions", "args": ["task_id: str"], "returns": "str (JSON array)" },
+        { "name": "get_task_stats", "args": ["task_id: str"], "returns": "str (JSON)" },
+        { "name": "get_task_count", "args": [], "returns": "uint256" },
+        { "name": "get_active_task_count", "args": [], "returns": "uint256" },
+        { "name": "get_platform_stats", "args": [], "returns": "str (JSON)" }
+      ]
     },
-    {
-      "name": "submit_work",
-      "args": ["task_id: str", "work_url: str", "description: str"],
-      "returns": "str (sub_id)"
+    "ProofOfImpact": {
+      "address": "0x8D8117828E401bB674295963e0acbB4C7Af257bc",
+      "deployment_tx": "0x14d959edbfacf87944f08210fa7247d9bb738069260866e9a72d4a92d1ca93b6",
+      "version": "3.0.2",
+      "constructor_args": [
+        "task_manager_address: Address",
+        "leaderboard_address: Address"
+      ],
+      "write_methods": [
+        { "name": "submit_work", "args": ["task_id: str", "work_url: str", "description: str"], "returns": "str (sub_id)" },
+        { "name": "evaluate_submission", "args": ["sub_id: str"], "returns": "str (AI JSON result)" },
+        { "name": "revise_submission", "args": ["sub_id: str", "work_url: str", "description: str"], "returns": "void" },
+        { "name": "withdraw_submission", "args": ["sub_id: str"], "returns": "void" },
+        { "name": "set_task_manager_contract", "args": ["task_manager_address: Address"], "returns": "void" },
+        { "name": "set_leaderboard_contract", "args": ["leaderboard_address: Address"], "returns": "void" },
+        { "name": "set_paused", "args": ["paused: uint256"], "returns": "void" }
+      ],
+      "view_methods": [
+        { "name": "get_task", "args": ["task_id: str"], "returns": "str (proxied JSON from TaskManager)" },
+        { "name": "get_submission", "args": ["sub_id: str"], "returns": "str (JSON)" },
+        { "name": "get_score", "args": ["sub_id: str"], "returns": "uint256" },
+        { "name": "get_leaderboard_score", "args": ["address: str"], "returns": "uint256" },
+        { "name": "get_submission_evaluation", "args": ["sub_id: str"], "returns": "str (JSON)" },
+        { "name": "can_submit", "args": ["task_id: str", "worker: str"], "returns": "str (JSON)" },
+        { "name": "get_submission_count", "args": [], "returns": "uint256" },
+        { "name": "get_evaluated_count", "args": [], "returns": "uint256" },
+        { "name": "get_platform_stats", "args": [], "returns": "str (JSON)" },
+        { "name": "get_task_manager_contract", "args": [], "returns": "str" },
+        { "name": "get_leaderboard_contract", "args": [], "returns": "str" }
+      ]
     },
-    {
-      "name": "evaluate_submission",
-      "args": ["sub_id: str"],
-      "returns": "str (JSON result)"
+    "GlobalLeaderboard": {
+      "address": "0x0EB4407460b232cB5BAC868f1296641419Fc3711",
+      "deployment_tx": "0xcaf7d3687e71af61cd768e405d3ac6a794a362872c81d941836cae977bae16b2",
+      "authorized_writer": "0x8D8117828E401bB674295963e0acbB4C7Af257bc",
+      "authorized_writer_tx": "0x07110571a5ddd910ef6eb7b5907e4ee98fbaba67fe1e616df053246d688c642c",
+      "write_methods": [
+        { "name": "set_authorized_writer", "args": ["writer: Address"], "returns": "void" },
+        { "name": "record_score", "args": ["contributor: str", "score: uint256"], "returns": "void" },
+        { "name": "set_score", "args": ["contributor: str", "score: uint256"], "returns": "void" },
+        { "name": "reset_score", "args": ["contributor: str"], "returns": "void" }
+      ],
+      "view_methods": [
+        { "name": "get_score", "args": ["contributor: str"], "returns": "uint256" },
+        { "name": "get_all_entries", "args": [], "returns": "str (JSON)" },
+        { "name": "get_top", "args": ["n: uint256"], "returns": "str (JSON)" },
+        { "name": "get_contributor_count", "args": [], "returns": "uint256" },
+        { "name": "get_authorized_writer", "args": [], "returns": "str" }
+      ]
     }
-  ],
-  "view_methods": [
-    { "name": "get_task", "args": ["task_id: str"], "returns": "str (JSON)" },
-    { "name": "get_submission", "args": ["sub_id: str"], "returns": "str (JSON)" },
-    { "name": "get_score", "args": ["sub_id: str"], "returns": "uint256" },
-    { "name": "get_leaderboard_score", "args": ["address: str"], "returns": "uint256" },
-    { "name": "get_task_count", "args": [], "returns": "uint256" },
-    { "name": "get_submission_count", "args": [], "returns": "uint256" }
-  ]
+  }
 }

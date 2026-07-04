@@ -1,5 +1,7 @@
 node_modules/
 dist/
+.codex-py/
+.codex/
 .env
 .env.local
 .kiro/
