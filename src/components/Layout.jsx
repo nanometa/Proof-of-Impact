@@ -6,16 +6,17 @@ export default function Layout() {
   const location = useLocation()
 
   return (
-    <div className="relative w-full min-h-screen overflow-hidden bg-background text-foreground flex flex-col font-sans">
+    <div className="relative w-full min-h-screen overflow-x-hidden bg-background text-foreground flex flex-col font-sans">
       {/* Dynamic Interactive Wave Background */}
       <Waves
-        className="absolute inset-0 z-0 pointer-events-none"
+        className="z-0 pointer-events-none"
+        position="fixed"
         strokeColor="rgba(139, 92, 246, 0.4)"
         backgroundColor="transparent"
       />
 
       {/* Blurred Overlay Shape (global backdrop glow) */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[984px] h-[527px] opacity-90 bg-gray-950 blur-[82px] pointer-events-none z-10" />
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[984px] h-[527px] opacity-90 bg-gray-950 blur-[82px] pointer-events-none z-10" />
 
       {/* Content wrapper z-20 above video and overlay blur */}
       <div className="relative z-20 flex-1 flex flex-col justify-between overflow-visible">
