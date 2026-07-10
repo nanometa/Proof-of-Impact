@@ -4,7 +4,7 @@ from genlayer import *
 import json
 
 
-CONTRACT_VERSION = "3.0.3"
+CONTRACT_VERSION = "3.1.0"
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
 TASK_OPEN = "open"
@@ -20,7 +20,7 @@ MAX_DESCRIPTION_LENGTH = 2000
 MAX_CRITERIA_LENGTH = 2000
 MAX_WORK_URL_LENGTH = 256
 MAX_SUBMISSION_DESCRIPTION_LENGTH = 1200
-MAX_FETCHED_CONTENT_LENGTH = 650
+MAX_FETCHED_CONTENT_LENGTH = 2000
 MAX_REWARD_POINTS = 1000000
 
 
@@ -186,6 +186,27 @@ def parse_evaluation_result(raw) -> dict:
     }
 
 
+def grade_for_score(score: int) -> str:
+    if score >= 90:
+        return "A"
+    if score >= 80:
+        return "B"
+    if score >= 70:
+        return "C"
+    if score >= 60:
+        return "D"
+    return "F"
+
+
+def add_risk_flag(result: dict, flag: str) -> None:
+    flags = result.get("risk_flags", [])
+    if not isinstance(flags, list):
+        flags = []
+    if flag not in flags:
+        flags.append(flag)
+    result["risk_flags"] = flags[:6]
+
+
 def build_evaluation_prompt(
     task_title: str,
     task_description: str,
@@ -208,7 +229,9 @@ def build_evaluation_prompt(
         "IMPORTANT RULES:\n"
         "- Base your evaluation primarily on the fetched content, not just the description.\n"
         "- If the URL could not be fetched or content is empty, penalize heavily (score <= 30).\n"
-        "- If the fetched content does not match the worker description or task criteria, penalize (score <= 50).\n"
+        "- If the fetched evidence is the wrong artifact for the requested task, score 0.\n"
+        "- An accessible URL alone proves nothing; score only factual evidence required by the criteria.\n"
+        "- If the fetched content only partially matches the task criteria, score proportionally.\n"
         "- If the fetched content matches the description and satisfies the criteria, reward accordingly.\n"
         "- Do not require repository-specific hardcoded rules. Judge the evidence generally.\n"
         "- Do not penalize a correct raw evidence file without a clear reason.\n\n"
@@ -233,16 +256,20 @@ def smart_evaluate_submission(
     work_url: str,
     work_description: str,
 ) -> dict:
-    def evaluate_single_source() -> str:
+    def fetch_evidence() -> str:
         try:
             rendered = gl.nondet.web.render(work_url, mode="text")
             url_content = str(rendered)[:MAX_FETCHED_CONTENT_LENGTH]
         except Exception:
-            url_content = "URL could not be fetched or is inaccessible."
+            return "URL_FETCH_FAILED: evidence could not be fetched."
 
         if not url_content.strip():
-            url_content = "URL content unavailable or empty during review."
+            return "URL_FETCH_FAILED: evidence was empty."
+        return url_content
 
+    verified_content = gl.eq_principle.strict_eq(fetch_evidence)
+
+    def evaluate_verified_evidence() -> str:
         try:
             prompt = build_evaluation_prompt(
                 task_title,
@@ -251,24 +278,26 @@ def smart_evaluate_submission(
                 reward_points,
                 work_url,
                 work_description,
-                url_content,
+                verified_content,
             )
             raw_result = gl.nondet.exec_prompt(prompt, response_format="json")
             result = parse_evaluation_result(raw_result)
         except Exception:
             result = make_evaluation_fallback("Evaluation failed unexpectedly.")
 
+        if str(verified_content).startswith("URL_FETCH_FAILED:"):
+            result["score"] = min(int(result.get("score", 0)), 30)
+            result["grade"] = grade_for_score(int(result["score"]))
+            result["url_valid"] = False
+            add_risk_flag(result, "evidence_fetch_failed")
         return json.dumps(result, sort_keys=True)
 
     result_json = gl.eq_principle.prompt_comparative(
-        evaluate_single_source,
+        evaluate_verified_evidence,
         principle=(
-            "The score must be within 10 points. "
-            "The pass/fail band must match. "
-            "The grade should match unless the score is near a boundary. "
-            "url_valid must match exactly. "
-            "Feedback, strengths, improvements, criteria_scores, and risk_flags "
-            "must be semantically similar."
+            "The score must be within 10 points and the pass/fail band must match. "
+            "url_valid must match exactly. Feedback and factual conclusions must be "
+            "semantically consistent with the independently verified evidence."
         ),
     )
 

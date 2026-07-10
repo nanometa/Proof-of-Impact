@@ -11,7 +11,7 @@
 [![Live](https://img.shields.io/badge/Live-proof--of--impact--pi.vercel.app-10b981?style=flat-square&logo=vercel)](https://proof-of-impact-pi.vercel.app/)
 [![Network](https://img.shields.io/badge/Network-Bradbury%20Testnet-8b5cf6?style=flat-square)](https://explorer-bradbury.genlayer.com)
 [![Chain ID](https://img.shields.io/badge/Chain%20ID-4221-3b82f6?style=flat-square)](https://docs.genlayer.com/developers/networks)
-[![Version](https://img.shields.io/badge/ProofOfImpact-v3.0.3-22c55e?style=flat-square)](#current-bradbury-deployment)
+[![Version](https://img.shields.io/badge/ProofOfImpact-v3.1.0-22c55e?style=flat-square)](#current-bradbury-deployment)
 [![License](https://img.shields.io/badge/License-MIT-64748b?style=flat-square)](#license)
 
 </div>
@@ -80,24 +80,24 @@ into an intelligent contract:
 
 - **Task Marketplace** - create open tasks with title, description, criteria, and reward points.
 - **AI-Powered Evaluation** - validators score submissions using task-specific evidence and criteria.
-- **Evidence-First AI Scoring** - validators fetch the submitted URL content and score it against the task criteria.
+- **Independent Evidence Consensus** - validators independently re-fetch the submitted URL before AI scoring can reach consensus.
 - **On-Chain Leaderboard** - contributor points are written to a dedicated leaderboard contract.
 - **Detailed Feedback** - every evaluated submission includes strengths, improvements, grade, and risk flags.
 - **Three-Contract Architecture** - task lifecycle, evaluation, and rankings are separated cleanly.
-- **Bradbury Production Deployment** - frontend defaults point to the active v3 contracts.
+- **Environment-Based Deployment** - contract addresses are configured through Vite environment variables, with no source-code fallbacks.
 - **Responsive Web App** - React, Vite, TailwindCSS, RainbowKit, wagmi, and genlayer-js.
 
 ---
 
 ## Current Bradbury Deployment
 
-This README documents the active `v3-smart-async-3-contracts` deployment on
+This README documents the active `v3.1-independent-evidence-consensus` deployment on
 GenLayer Bradbury Testnet.
 
 | Contract | Version | Address | Purpose |
 | --- | --- | --- | --- |
 | `TaskManager` | `3.0.0` | [`0x90Cad9eBfeCcCb1Dafe7070b93a89dfDe9E4Bd50`](https://explorer-bradbury.genlayer.com/address/0x90Cad9eBfeCcCb1Dafe7070b93a89dfDe9E4Bd50) | task creation, task status, task counters |
-| `ProofOfImpact` | `3.0.3` | [`0x4af859b108124A791f1450D3Ee1E54790a6eCb76`](https://explorer-bradbury.genlayer.com/address/0x4af859b108124A791f1450D3Ee1E54790a6eCb76) | submissions, evidence-first AI evaluation, points |
+| `ProofOfImpact` | `3.1.0` | [`0xa37000f1522f9102D0D6EF16E9061faA3BF91C68`](https://explorer-bradbury.genlayer.com/address/0xa37000f1522f9102D0D6EF16E9061faA3BF91C68) | independent evidence consensus, AI evaluation, points |
 | `GlobalLeaderboard` | current | [`0xc335b7326D70067373b7c8c88f42803BcDcC1D5C`](https://explorer-bradbury.genlayer.com/address/0xc335b7326D70067373b7c8c88f42803BcDcC1D5C) | cumulative contributor rankings |
 
 Deployment and authorization transactions:
@@ -105,20 +105,16 @@ Deployment and authorization transactions:
 | Action | Tx |
 | --- | --- |
 | Deploy `TaskManager` | [`0x370a653bebc20da0bad82b1ddaff0a1e105fa74c593d0f40c33c62741b4952fa`](https://explorer-bradbury.genlayer.com/tx/0x370a653bebc20da0bad82b1ddaff0a1e105fa74c593d0f40c33c62741b4952fa) |
-| Deploy `ProofOfImpact v3.0.3` | [`0x4660fdc7ea8dd87353e732981c9c4477edf0db25ac0901a9c9600356767371dd`](https://explorer-bradbury.genlayer.com/tx/0x4660fdc7ea8dd87353e732981c9c4477edf0db25ac0901a9c9600356767371dd) |
+| Deploy `ProofOfImpact v3.1.0` | [`0x59d86274b26d1d266c587e1e54762ce51be79f6dd5b106104f4493d7556888a5`](https://explorer-bradbury.genlayer.com/tx/0x59d86274b26d1d266c587e1e54762ce51be79f6dd5b106104f4493d7556888a5) |
 | Deploy `GlobalLeaderboard` | [`0x4d86e46fdedfd082f222baf02159ff5514e438bb1f1e76c167d3018f80851d4f`](https://explorer-bradbury.genlayer.com/tx/0x4d86e46fdedfd082f222baf02159ff5514e438bb1f1e76c167d3018f80851d4f) |
-| Authorize `ProofOfImpact` in `TaskManager` | [`0x97fe46b8cb98ee6133b41347ad938165473ac2e66c1e221662f7ae99d7abc2d2`](https://explorer-bradbury.genlayer.com/tx/0x97fe46b8cb98ee6133b41347ad938165473ac2e66c1e221662f7ae99d7abc2d2) |
-| Authorize `ProofOfImpact` in `GlobalLeaderboard` | [`0x49e334ae79078382cf929876e74c432bc8f05c6cc8b89230c42354280bff6086`](https://explorer-bradbury.genlayer.com/tx/0x49e334ae79078382cf929876e74c432bc8f05c6cc8b89230c42354280bff6086) |
-
-Legacy note: the older contract at
-`0xD931392177067735378b26e5EE37851284c19d69` is no longer the active
-frontend target.
+| Authorize `ProofOfImpact` in `TaskManager` | verified by `get_authorized_submitter()` |
+| Authorize `ProofOfImpact` in `GlobalLeaderboard` | verified by `get_authorized_writer()` |
 
 ---
 
 ## Verified On-Chain Tests
 
-`ProofOfImpact v3.0.3` was smoke-tested directly on Bradbury with real
+`ProofOfImpact v3.1.0` was tested directly on Bradbury with real
 transactions.
 
 Task: require a direct raw MIT license file containing the full license terms.
@@ -133,20 +129,22 @@ Result:
 
 | Field | Value |
 | --- | --- |
-| Submission | `task-0`, `sub-0` |
+| Submission | `task-6`, `sub-0` |
 | Score | `100` |
 | Grade | `A` |
 | Points earned | `100` |
-| Create task tx | [`0xc485c3e25ce24cf6373843c60a9eb552f98d5bc267a0ef40227c730a91693bf1`](https://explorer-bradbury.genlayer.com/tx/0xc485c3e25ce24cf6373843c60a9eb552f98d5bc267a0ef40227c730a91693bf1) |
-| Submit tx | [`0xa6fc0264606d0bcdd76d7896d032180f2af5a0923d3069c7e360ae17737c0b3f`](https://explorer-bradbury.genlayer.com/tx/0xa6fc0264606d0bcdd76d7896d032180f2af5a0923d3069c7e360ae17737c0b3f) |
-| Evaluation tx | [`0x3e9537db5614aa47fad53bfc1bb0b3944f98b73dcc35f9c4d76f47485660995a`](https://explorer-bradbury.genlayer.com/tx/0x3e9537db5614aa47fad53bfc1bb0b3944f98b73dcc35f9c4d76f47485660995a) |
+| Evaluation tx | [`0x7dc84674f3ccae729f06e1216df8c62ea09eb2086adb4fc4a293856262d9c0ae`](https://explorer-bradbury.genlayer.com/tx/0x7dc84674f3ccae729f06e1216df8c62ea09eb2086adb4fc4a293856262d9c0ae) |
 
-Leaderboard verification:
+Negative control: the same task criteria were tested with a React source file
+instead of the requested license:
 
 ```text
-GlobalLeaderboard.get_all_entries()
-=> [{"address":"0xb42c1161bb124b9ceb7fd2439cbf3538e39b0619","score":100,"rank":1}]
+https://raw.githubusercontent.com/facebook/react/main/packages/react/index.js
 ```
+
+The independently fetched content was identified as the wrong artifact and
+received `0/F` with `wrong_artifact` and `misrepresentation` risk flags.
+Evaluation tx: [`0x11543c5836dc3c81ec96700a1441e4bc8a23ef4109c02d91a350ab3b1833be51`](https://explorer-bradbury.genlayer.com/tx/0x11543c5836dc3c81ec96700a1441e4bc8a23ef4109c02d91a350ab3b1833be51).
 
 ---
 
@@ -207,20 +205,28 @@ The contract does not use hardcoded repository rules or deterministic
 task-specific scoring gates. The final score is produced by validator consensus
 over the fetched evidence and task criteria.
 
-### 2. Web evidence fetch
+### 2. Independent evidence consensus
 
-For submissions that pass the gate, the contract fetches the submitted URL with
-GenLayer web nondeterminism:
+The submitted URL is fetched inside a dedicated equivalence block. `strict_eq`
+causes validators to independently retrieve the evidence and only accepts a
+canonical result when they agree on the fetched content:
 
 ```python
-url_content = gl.nondet.web.render(work_url, mode="text")
+def fetch_evidence():
+    return str(gl.nondet.web.render(work_url, mode="text"))[:2000]
+
+verified_content = gl.eq_principle.strict_eq(fetch_evidence)
 ```
 
-### 3. AI validator scoring
+This prevents an inaccessible page, a hallucinated description, or one
+validator's private fetch result from becoming the shared source of truth.
 
-The contract builds a task-aware prompt and asks validators to score the
-submission using the task title, description, criteria, submitted URL,
-contributor description, and fetched evidence.
+### 3. Comparative AI scoring
+
+The contract then builds a task-aware prompt from `verified_content` and runs a
+second `prompt_comparative` equivalence block. Validators must agree on the
+score band, URL validity, and factual conclusion while allowing small numerical
+variation in subjective scoring.
 
 The final JSON includes:
 
@@ -255,19 +261,19 @@ The frontend contract client lives in:
 src/lib/contract.js
 ```
 
-Production defaults:
+Addresses are required configuration. `src/lib/contract.js` validates the three
+variables at startup and contains no deployed-address or zero-address fallback.
+For local development:
 
-```js
-const CONTRACT_ADDRESS = '0x4af859b108124A791f1450D3Ee1E54790a6eCb76'
-const TASK_MANAGER_CONTRACT = '0x90Cad9eBfeCcCb1Dafe7070b93a89dfDe9E4Bd50'
-const LEADERBOARD_CONTRACT = '0xc335b7326D70067373b7c8c88f42803BcDcC1D5C'
+```bash
+cp .env.example .env.local
 ```
 
-Build-time overrides:
+Active Bradbury configuration:
 
 ```bash
 VITE_TASK_MANAGER_ADDRESS=0x90Cad9eBfeCcCb1Dafe7070b93a89dfDe9E4Bd50
-VITE_PROOF_OF_IMPACT_ADDRESS=0x4af859b108124A791f1450D3Ee1E54790a6eCb76
+VITE_PROOF_OF_IMPACT_ADDRESS=0xa37000f1522f9102D0D6EF16E9061faA3BF91C68
 VITE_GLOBAL_LEADERBOARD_ADDRESS=0xc335b7326D70067373b7c8c88f42803BcDcC1D5C
 ```
 
@@ -310,6 +316,7 @@ The app uses:
 git clone https://github.com/nanometa/Proof-of-Impact.git
 cd Proof-of-Impact
 npm install
+cp .env.example .env.local
 ```
 
 ### Run locally
@@ -350,7 +357,7 @@ npx --yes genlayer@latest network info
 Read deployed contract state:
 
 ```bash
-npx --yes genlayer@latest call 0x4af859b108124A791f1450D3Ee1E54790a6eCb76 get_version
+npx --yes genlayer@latest call 0xa37000f1522f9102D0D6EF16E9061faA3BF91C68 get_version
 npx --yes genlayer@latest call 0x90Cad9eBfeCcCb1Dafe7070b93a89dfDe9E4Bd50 get_authorized_submitter
 npx --yes genlayer@latest call 0xc335b7326D70067373b7c8c88f42803BcDcC1D5C get_authorized_writer
 ```

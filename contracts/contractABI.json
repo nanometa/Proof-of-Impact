@@ -3,14 +3,13 @@
   "rpc": "https://rpc-bradbury.genlayer.com",
   "chain_id": 4221,
   "explorer": "https://explorer-bradbury.genlayer.com",
-  "architecture": "v3-smart-async-3-contracts",
+  "architecture": "v3.1-independent-evidence-consensus",
   "contracts": {
     "TaskManager": {
       "address": "0x90Cad9eBfeCcCb1Dafe7070b93a89dfDe9E4Bd50",
       "deployment_tx": "0x370a653bebc20da0bad82b1ddaff0a1e105fa74c593d0f40c33c62741b4952fa",
       "version": "3.0.0",
-      "authorized_submitter": "0x4af859b108124A791f1450D3Ee1E54790a6eCb76",
-      "authorized_submitter_tx": "0x97fe46b8cb98ee6133b41347ad938165473ac2e66c1e221662f7ae99d7abc2d2",
+      "authorized_submitter": "0xa37000f1522f9102D0D6EF16E9061faA3BF91C68",
       "write_methods": [
         { "name": "create_task", "args": ["title: str", "description: str", "criteria: str", "reward_points: uint256"], "returns": "str (task_id)" },
         { "name": "update_task_metadata", "args": ["task_id: str", "title: str", "description: str", "criteria: str"], "returns": "void" },
@@ -29,9 +28,10 @@
       ]
     },
     "ProofOfImpact": {
-      "address": "0x4af859b108124A791f1450D3Ee1E54790a6eCb76",
-      "deployment_tx": "0x4660fdc7ea8dd87353e732981c9c4477edf0db25ac0901a9c9600356767371dd",
-      "version": "3.0.3",
+      "address": "0xa37000f1522f9102D0D6EF16E9061faA3BF91C68",
+      "deployment_tx": "0x59d86274b26d1d266c587e1e54762ce51be79f6dd5b106104f4493d7556888a5",
+      "version": "3.1.0",
+      "evidence_consensus": "strict_eq independent URL fetch followed by prompt_comparative scoring",
       "constructor_args": [
         "task_manager_address: Address",
         "leaderboard_address: Address"
@@ -62,8 +62,7 @@
     "GlobalLeaderboard": {
       "address": "0xc335b7326D70067373b7c8c88f42803BcDcC1D5C",
       "deployment_tx": "0x4d86e46fdedfd082f222baf02159ff5514e438bb1f1e76c167d3018f80851d4f",
-      "authorized_writer": "0x4af859b108124A791f1450D3Ee1E54790a6eCb76",
-      "authorized_writer_tx": "0x49e334ae79078382cf929876e74c432bc8f05c6cc8b89230c42354280bff6086",
+      "authorized_writer": "0xa37000f1522f9102D0D6EF16E9061faA3BF91C68",
       "write_methods": [
         { "name": "set_authorized_writer", "args": ["writer: Address"], "returns": "void" },
         { "name": "record_score", "args": ["contributor: str", "score: uint256"], "returns": "void" },

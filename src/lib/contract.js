@@ -11,19 +11,21 @@ import { testnetBradbury } from 'genlayer-js/chains'
 import { custom } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+const ADDRESS_PATTERN = /^0x[a-fA-F0-9]{40}$/
 
-const CONTRACT_ADDRESS =
-  import.meta.env.VITE_PROOF_OF_IMPACT_ADDRESS ||
-  '0x4af859b108124A791f1450D3Ee1E54790a6eCb76'
+function getConfiguredAddress(envName) {
+  const value = String(import.meta.env[envName] || '').trim()
+  if (!ADDRESS_PATTERN.test(value)) {
+    throw new Error(
+      `${envName} is missing or invalid. Copy .env.example to .env.local and configure the Bradbury contract address.`,
+    )
+  }
+  return value
+}
 
-const TASK_MANAGER_CONTRACT =
-  import.meta.env.VITE_TASK_MANAGER_ADDRESS ||
-  '0x90Cad9eBfeCcCb1Dafe7070b93a89dfDe9E4Bd50'
-
-const LEADERBOARD_CONTRACT =
-  import.meta.env.VITE_GLOBAL_LEADERBOARD_ADDRESS ||
-  '0xc335b7326D70067373b7c8c88f42803BcDcC1D5C'
+const CONTRACT_ADDRESS = getConfiguredAddress('VITE_PROOF_OF_IMPACT_ADDRESS')
+const TASK_MANAGER_CONTRACT = getConfiguredAddress('VITE_TASK_MANAGER_ADDRESS')
+const LEADERBOARD_CONTRACT = getConfiguredAddress('VITE_GLOBAL_LEADERBOARD_ADDRESS')
 
 const EXPLORER_BASE = 'https://explorer-bradbury.genlayer.com/tx'
 const DATA_MODE = 'genlayer'
@@ -149,7 +151,7 @@ if (ethereumProvider) {
 export async function createTask(title, description, criteria, rewardPoints) {
   ensureConnected()
   const client = getSigningClient()
-  const taskAddress = TASK_MANAGER_CONTRACT !== ZERO_ADDRESS ? TASK_MANAGER_CONTRACT : CONTRACT_ADDRESS
+  const taskAddress = TASK_MANAGER_CONTRACT
 
   try {
     clearReadCache()
@@ -302,7 +304,7 @@ async function safeProofRead(fn, args = []) {
 }
 
 async function safeTaskRead(fn, args = []) {
-  const taskAddress = TASK_MANAGER_CONTRACT !== ZERO_ADDRESS ? TASK_MANAGER_CONTRACT : CONTRACT_ADDRESS
+  const taskAddress = TASK_MANAGER_CONTRACT
   return safeReadFrom(taskAddress, fn, args)
 }
 
@@ -330,6 +332,10 @@ export async function getSubmission(subId) {
 export async function getScore(subId) {
   const result = await safeProofRead('get_score', [subId])
   return result != null ? Number(result) : 0
+}
+
+export async function getSubmissionEvaluation(subId) {
+  return parseResult(await safeProofRead('get_submission_evaluation', [subId]))
 }
 
 export async function getLeaderboardScore(addr) {
@@ -441,7 +447,7 @@ export async function loadSubmissionsForTask(taskId) {
 }
 
 export async function getAllLeaderboardEntries() {
-  if (LEADERBOARD_CONTRACT !== ZERO_ADDRESS) {
+  if (LEADERBOARD_CONTRACT) {
     try {
       const raw = await getReadClient().readContract({
         address: LEADERBOARD_CONTRACT,
@@ -465,7 +471,7 @@ export async function getLeaderboardTop(n = 10) {
 }
 
 export async function getLeaderboardContributorCount() {
-  if (LEADERBOARD_CONTRACT !== ZERO_ADDRESS) {
+  if (LEADERBOARD_CONTRACT) {
     try {
       const result = await getReadClient().readContract({
         address: LEADERBOARD_CONTRACT,

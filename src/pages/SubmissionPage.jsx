@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { getSubmission, evaluateSubmission, getScore, getCachedEvaluation } from '../lib/contract'
+import {
+  getSubmission,
+  evaluateSubmission,
+  getScore,
+  getSubmissionEvaluation,
+  getCachedEvaluation,
+} from '../lib/contract'
 import { useWallet } from '../context/WalletContext'
 import { useToast } from '../context/ToastContext'
 import { getScoreColor } from '../lib/utils'
@@ -44,8 +50,11 @@ export default function SubmissionPage() {
       if (sub?.status === 'evaluated') {
         const s = await getScore(subId)
         setScore(s)
+        const onchainEvaluation = await getSubmissionEvaluation(subId)
+        const hasOnchainEvaluation =
+          onchainEvaluation && Object.keys(onchainEvaluation).length > 0
         const cached = getCachedEvaluation(subId)
-        if (cached) setEvaluation(cached)
+        setEvaluation(hasOnchainEvaluation ? onchainEvaluation : cached)
       }
     } catch (e) {
       console.error('Failed to load submission:', e)
@@ -195,7 +204,7 @@ function PendingView({ submission, evaluating, currentStep, onEvaluate }) {
 }
 
 function EvaluatedView({ submission, score, evaluation }) {
-  // Use evaluation from cache if available, fallback to score from chain
+  // Prefer the on-chain evaluation and use the cached receipt as a fallback.
   const finalScore = evaluation?.score ?? score ?? 0
   const grade = evaluation?.grade ?? deriveGrade(finalScore)
   const feedback = evaluation?.feedback
@@ -241,7 +250,7 @@ function EvaluatedView({ submission, score, evaluation }) {
       ) : (
         <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
           <p className="text-sm text-white/50 font-sans">
-            Detailed feedback was generated during evaluation but is only stored on-chain in the transaction.
+            Detailed feedback could not be loaded from the contract. Refresh to retry.
             <br />
             <span className="text-xs">Score: <span className="font-mono text-white">{finalScore}/100</span></span>
           </p>
