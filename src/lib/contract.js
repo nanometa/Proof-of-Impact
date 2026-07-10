@@ -33,6 +33,14 @@ const POLL_INTERVAL = 3000
 const MAX_TIMEOUT = 600000
 const READ_RETRIES = 3
 const RATE_LIMIT_DELAY = 1500
+const TERMINAL_TX_FAILURES = new Set([
+  'LEADER_TIMEOUT',
+  'VALIDATORS_TIMEOUT',
+  'REJECTED',
+  'CANCELED',
+  'CANCELLED',
+  'UNDETERMINED',
+])
 
 export { CONTRACT_ADDRESS, DATA_MODE, EXPLORER_BASE, LEADERBOARD_CONTRACT, TASK_MANAGER_CONTRACT }
 
@@ -239,10 +247,20 @@ async function pollTx(hash) {
   while (Date.now() - start < MAX_TIMEOUT) {
     try {
       const tx = await client.getTransaction({ hash })
-      if (tx?.statusName === 'FINALIZED' || tx?.statusName === 'ACCEPTED') {
+      const status = String(tx?.statusName || tx?.status_name || '').toUpperCase()
+      if (status === 'FINALIZED' || status === 'ACCEPTED') {
         return { hash, receipt: tx }
       }
-    } catch {}
+      if (TERMINAL_TX_FAILURES.has(status)) {
+        const error = new Error(
+          `Consensus ended with ${status.replaceAll('_', ' ').toLowerCase()}. The transaction was not applied; retry it.`,
+        )
+        error.name = 'ConsensusTerminalError'
+        throw error
+      }
+    } catch (error) {
+      if (error?.name === 'ConsensusTerminalError') throw error
+    }
 
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL))
   }
