@@ -7,7 +7,8 @@ export function Waves({
     className = "",
     strokeColor = "rgba(139, 92, 246, 0.3)",  // Subtle neon purple lines matching the theme
     backgroundColor = "transparent",  // Transparent so the main background shows through
-    pointerSize = 0.5
+    pointerSize = 0.5,
+    position = "absolute"
 }) {
     const containerRef = useRef(null)
     const svgRef = useRef(null)
@@ -39,6 +40,7 @@ export function Waves({
         setLines()
 
         window.addEventListener('resize', onResize)
+        window.visualViewport?.addEventListener('resize', onResize)
         window.addEventListener('mousemove', onMouseMove)
         containerRef.current.addEventListener('touchmove', onTouchMove, { passive: false })
 
@@ -47,6 +49,7 @@ export function Waves({
         return () => {
             if (rafRef.current) cancelAnimationFrame(rafRef.current)
             window.removeEventListener('resize', onResize)
+            window.visualViewport?.removeEventListener('resize', onResize)
             window.removeEventListener('mousemove', onMouseMove)
             containerRef.current?.removeEventListener('touchmove', onTouchMove)
         }
@@ -121,7 +124,7 @@ export function Waves({
     }
 
     const onMouseMove = (e) => {
-        updateMousePosition(e.pageX, e.pageY)
+        updateMousePosition(e.clientX, e.clientY)
     }
 
     const onTouchMove = (e) => {
@@ -135,7 +138,7 @@ export function Waves({
 
         const mouse = mouseRef.current
         mouse.x = x - boundingRef.current.left
-        mouse.y = y - boundingRef.current.top + window.scrollY
+        mouse.y = y - boundingRef.current.top
 
         if (!mouse.set) {
             mouse.sx = mouse.x
@@ -260,13 +263,12 @@ export function Waves({
             className={`waves-component relative overflow-hidden ${className}`}
             style={{
                 backgroundColor,
-                position: 'absolute',
-                top: 0,
-                left: 0,
+                position,
+                inset: 0,
                 margin: 0,
                 padding: 0,
-                width: '100%',
-                height: '100%',
+                width: position === 'fixed' ? '100vw' : '100%',
+                height: position === 'fixed' ? '100dvh' : '100%',
                 overflow: 'hidden',
                 '--x': '-0.5rem',
                 '--y': '50%',
