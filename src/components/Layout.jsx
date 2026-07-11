@@ -1,12 +1,15 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { Waves } from '@/components/ui/wave-background.jsx'
+import { GlassFilter } from '@/components/ui/liquid-glass.jsx'
 
 export default function Layout() {
   const location = useLocation()
 
   return (
     <div className="relative w-full min-h-screen overflow-x-hidden bg-background text-foreground flex flex-col font-sans">
+      <GlassFilter />
+
       {/* Dynamic Interactive Wave Background */}
       <Waves
         className="z-0 pointer-events-none"

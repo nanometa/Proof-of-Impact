@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { loadAllTasks, getTaskCount, getSubmissionCount } from '../lib/contract'
 import { truncateAddress } from '../lib/utils'
 import Spinner from '../components/Spinner'
+import { GlassEffect } from '../components/ui/liquid-glass'
 
 export default function HomePage() {
   const [tasks, setTasks] = useState([])
@@ -121,9 +122,10 @@ export default function HomePage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((task, i) => (
-              <div
+              <GlassEffect
                 key={task.task_id}
-                className="relative bg-white/5 border border-white/10 rounded-2xl p-6 transition-all hover:bg-white/10 hover:border-white/20 hover:shadow-[0_0_30px_rgba(139,92,246,0.15)] group fade-in-up duration-300"
+                className="rounded-2xl group fade-in-up min-h-[231px] h-full"
+                contentClassName="h-full p-6 flex flex-col"
                 style={{ animationDelay: `${i * 50}ms` }}
               >
                 <div className="flex items-start justify-between gap-3 mb-3">
@@ -147,7 +149,7 @@ export default function HomePage() {
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between pt-3 border-t border-white/10">
+                <div className="flex items-center justify-between pt-3 mt-auto border-t border-white/10">
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-[11px] text-white/40">{truncateAddress(task.creator)}</span>
                   </div>
@@ -163,7 +165,7 @@ export default function HomePage() {
                     </Link>
                   </div>
                 </div>
-              </div>
+              </GlassEffect>
             ))}
           </div>
         )}
