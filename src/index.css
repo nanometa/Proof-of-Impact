@@ -193,6 +193,61 @@
   border: 1px solid rgba(30, 30, 46, 0.8);
 }
 
+/* Layered liquid glass used by interactive task cards */
+.liquid-glass-effect {
+  translate: 0 0;
+  background: rgba(9, 8, 19, 0.26);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.28),
+    0 2px 10px rgba(0, 0, 0, 0.18);
+  transition:
+    translate 450ms,
+    border-color 450ms,
+    box-shadow 450ms;
+}
+
+.liquid-glass-distortion {
+  background: rgba(255, 255, 255, 0.025);
+  backdrop-filter: blur(9px) saturate(145%);
+  -webkit-backdrop-filter: blur(9px) saturate(145%);
+  filter: url("#glass-distortion");
+}
+
+.liquid-glass-tint {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.025) 42%, rgba(139, 92, 246, 0.045) 72%, rgba(14, 165, 233, 0.025));
+  opacity: 0.72;
+  transition: opacity 450ms ease;
+}
+
+.liquid-glass-highlight {
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 255, 255, 0.22),
+    inset -1px -1px 0 rgba(255, 255, 255, 0.035),
+    inset 0 18px 28px -26px rgba(255, 255, 255, 0.28);
+}
+
+.liquid-glass-effect:hover {
+  translate: 0 -3px;
+  border-color: rgba(167, 139, 250, 0.28);
+  box-shadow:
+    0 20px 52px rgba(0, 0, 0, 0.34),
+    0 0 28px rgba(139, 92, 246, 0.12);
+}
+
+.liquid-glass-effect:hover .liquid-glass-tint {
+  opacity: 0.95;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liquid-glass-effect,
+  .liquid-glass-tint {
+    transition: none;
+  }
+}
+
 /* Orb backgrounds */
 .orb {
   position: absolute;
