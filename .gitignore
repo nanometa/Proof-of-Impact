@@ -1,5 +1,9 @@
 node_modules/
 dist/
+artifacts/
+.pytest_cache/
+__pycache__/
+*.py[cod]
 .codex-py/
 .codex/
 .env

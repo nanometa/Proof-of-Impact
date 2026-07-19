@@ -11,23 +11,56 @@ export default function CreateTaskPage() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [criteria, setCriteria] = useState('')
-  const [rewardPoints, setRewardPoints] = useState('')
+  const [rewardPoints, setRewardPoints] = useState('100')
+  const [bountyGen, setBountyGen] = useState('0.01')
+  const [payoutThreshold, setPayoutThreshold] = useState('70')
+  const [durationDays, setDurationDays] = useState('7')
   const [loading, setLoading] = useState(false)
   const [submitStatus, setSubmitStatus] = useState('')
 
   async function handleSubmit(e) {
     e.preventDefault()
 
-    if (!title.trim() || !description.trim() || !criteria.trim() || !rewardPoints) {
+    if (!title.trim() || !description.trim() || !criteria.trim()) {
       addToast({ type: 'error', message: 'Please fill in all fields' })
       return
     }
 
+    const points = Number(rewardPoints)
+    const bounty = Number(bountyGen)
+    const threshold = Number(payoutThreshold)
+    const days = Number(durationDays)
+
+    if (!Number.isInteger(points) || points < 1) {
+      addToast({ type: 'error', message: 'Reward points must be a positive integer' })
+      return
+    }
+    if (!Number.isFinite(bounty) || bounty <= 0) {
+      addToast({ type: 'error', message: 'A positive GEN bounty is required' })
+      return
+    }
+    if (!Number.isInteger(threshold) || threshold < 50 || threshold > 100) {
+      addToast({ type: 'error', message: 'The payout threshold must be between 50 and 100' })
+      return
+    }
+    if (!Number.isInteger(days) || days < 1 || days > 30) {
+      addToast({ type: 'error', message: 'The task duration must be between 1 and 30 days' })
+      return
+    }
+
     setLoading(true)
-    setSubmitStatus('Submitting transaction...')
+    setSubmitStatus('Locking GEN bounty on-chain...')
     try {
       const previousCount = await getTaskCount().catch(() => 0)
-      const result = await createTask(title.trim(), description.trim(), criteria.trim(), Number(rewardPoints))
+      const result = await createTask(
+        title.trim(),
+        description.trim(),
+        criteria.trim(),
+        points,
+        bountyGen,
+        threshold,
+        days * 24 * 60 * 60,
+      )
       if (result.hash) {
         setSubmitStatus('Syncing on-chain task...')
         const nextCount = await waitForTaskCount(previousCount)
@@ -67,7 +100,7 @@ export default function CreateTaskPage() {
           </div>
           <h1 className="font-heading text-2xl font-semibold text-white tracking-wide">Create Task</h1>
         </div>
-        <p className="text-sm text-white/50 mb-8 ml-[52px] font-sans">Define work for contributors to complete and earn rewards.</p>
+        <p className="text-sm text-white/50 mb-8 ml-[52px] font-sans">Fund verifiable work with an on-chain GEN bounty.</p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
@@ -103,16 +136,64 @@ export default function CreateTaskPage() {
             />
           </div>
 
-          <div>
-            <label className="block text-xs text-white/40 uppercase tracking-wider mb-2 font-semibold font-sans">Reward Points</label>
-            <input
-              type="number"
-              min="1"
-              value={rewardPoints}
-              onChange={e => setRewardPoints(e.target.value)}
-              placeholder="100"
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:border-[#8B5CF6]/50 focus:bg-white/10 transition-colors font-mono text-sm"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs text-white/40 uppercase tracking-wider mb-2 font-semibold font-sans">GEN Bounty</label>
+              <input
+                type="number"
+                min="0.000001"
+                step="0.000001"
+                value={bountyGen}
+                onChange={e => setBountyGen(e.target.value)}
+                placeholder="0.01"
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:border-[#8B5CF6]/50 focus:bg-white/10 transition-colors font-mono text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-white/40 uppercase tracking-wider mb-2 font-semibold font-sans">Reward Points</label>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={rewardPoints}
+                onChange={e => setRewardPoints(e.target.value)}
+                placeholder="100"
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:border-[#8B5CF6]/50 focus:bg-white/10 transition-colors font-mono text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-white/40 uppercase tracking-wider mb-2 font-semibold font-sans">Winning Score</label>
+              <input
+                type="number"
+                min="50"
+                max="100"
+                step="1"
+                value={payoutThreshold}
+                onChange={e => setPayoutThreshold(e.target.value)}
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:border-[#8B5CF6]/50 focus:bg-white/10 transition-colors font-mono text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-white/40 uppercase tracking-wider mb-2 font-semibold font-sans">Duration (days)</label>
+              <input
+                type="number"
+                min="1"
+                max="30"
+                step="1"
+                value={durationDays}
+                onChange={e => setDurationDays(e.target.value)}
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:border-[#8B5CF6]/50 focus:bg-white/10 transition-colors font-mono text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 px-4 py-3 bg-[#0ea5e9]/5 border border-[#0ea5e9]/20 rounded-xl">
+            <svg className="w-4 h-4 text-[#0ea5e9] mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+            <p className="text-xs text-white/60 leading-relaxed">
+              The bounty is locked in the TaskManager contract. It is paid once to the first submission reaching the winning score, or returned after the deadline and 24-hour settlement window.
+            </p>
           </div>
 
           <button
@@ -126,7 +207,7 @@ export default function CreateTaskPage() {
                 {submitStatus || 'Creating Task...'}
               </>
             ) : (
-              'Create Task'
+              'Lock GEN & Create Task'
             )}
           </button>
         </form>

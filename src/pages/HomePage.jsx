@@ -1,9 +1,17 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { loadAllTasks, getTaskCount, getSubmissionCount } from '../lib/contract'
-import { truncateAddress } from '../lib/utils'
+import { formatGen, truncateAddress } from '../lib/utils'
 import Spinner from '../components/Spinner'
 import { GlassEffect } from '../components/ui/liquid-glass'
+
+function getVisibleStatus(task) {
+  const deadline = Number(task?.deadline || 0)
+  if (task?.status === 'open' && deadline > 0 && Date.now() / 1000 > deadline) {
+    return 'expired'
+  }
+  return task?.status || 'unknown'
+}
 
 export default function HomePage() {
   const [tasks, setTasks] = useState([])
@@ -32,7 +40,12 @@ export default function HomePage() {
     load()
   }, [])
 
-  const filtered = filter === 'all' ? tasks : tasks.filter(t => t.status === filter)
+  const filtered = tasks.filter((task) => {
+    if (filter === 'all') return true
+    const status = getVisibleStatus(task)
+    if (filter === 'closed') return status !== 'open'
+    return status === filter
+  })
 
   return (
     <div className="relative bg-transparent flex-1 w-full pb-16">
@@ -121,23 +134,25 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filtered.map((task, i) => (
-              <GlassEffect
-                key={task.task_id}
-                className="rounded-2xl group fade-in-up min-h-[231px] h-full"
-                contentClassName="h-full p-6 flex flex-col"
-                style={{ animationDelay: `${i * 50}ms` }}
-              >
+            {filtered.map((task, i) => {
+              const taskStatus = getVisibleStatus(task)
+              return (
+                <GlassEffect
+                  key={task.task_id}
+                  className="rounded-2xl group fade-in-up min-h-[252px] h-full"
+                  contentClassName="h-full p-6 flex flex-col"
+                  style={{ animationDelay: `${i * 50}ms` }}
+                >
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <h3 className="font-heading font-semibold text-white group-hover:text-purple transition-colors line-clamp-1 text-[15px] tracking-wide">
                     {task.title}
                   </h3>
                   <span className={`shrink-0 text-[11px] px-2.5 py-0.5 rounded-full font-medium uppercase tracking-wide transition-all ${
-                    task.status === 'open'
+                    taskStatus === 'open'
                       ? 'bg-[#8B5CF6]/10 border border-[#8B5CF6]/50 text-[#8B5CF6]'
                       : 'bg-white/5 border border-white/10 text-white/60'
                   }`}>
-                    {task.status}
+                    {taskStatus}
                   </span>
                 </div>
 
@@ -147,6 +162,13 @@ export default function HomePage() {
                   <span className="inline-block text-[11px] px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white/70 font-medium truncate max-w-full font-sans">
                     {task.criteria}
                   </span>
+                </div>
+
+                <div className="flex items-center gap-3 text-[11px] mb-3">
+                  <span className="font-mono text-[#0ea5e9]">
+                    {formatGen(task.escrow_total_wei)} GEN locked
+                  </span>
+                  <span className="text-white/30">Score {task.payout_threshold}+</span>
                 </div>
 
                 <div className="flex items-center justify-between pt-3 mt-auto border-t border-white/10">
@@ -165,8 +187,9 @@ export default function HomePage() {
                     </Link>
                   </div>
                 </div>
-              </GlassEffect>
-            ))}
+                </GlassEffect>
+              )
+            })}
           </div>
         )}
       </div>
