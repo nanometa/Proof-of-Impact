@@ -3,79 +3,232 @@
   "rpc": "https://rpc-bradbury.genlayer.com",
   "chain_id": 4221,
   "explorer": "https://explorer-bradbury.genlayer.com",
-  "architecture": "v3.1-independent-evidence-consensus",
+  "architecture": "v4-native-gen-escrow-independent-evidence",
   "contracts": {
     "TaskManager": {
-      "address": "0x90Cad9eBfeCcCb1Dafe7070b93a89dfDe9E4Bd50",
-      "deployment_tx": "0x370a653bebc20da0bad82b1ddaff0a1e105fa74c593d0f40c33c62741b4952fa",
-      "version": "3.0.0",
-      "authorized_submitter": "0xa37000f1522f9102D0D6EF16E9061faA3BF91C68",
+      "address": "0xbDbC9FEdBac47329D02fFA1Edffc7179d11e5c79",
+      "deployment_tx": "0x99ddbf26dc99c811e7f13e42a4a521a73fa28e2fe8495274f5f3d3d790db2691",
+      "version": "4.0.0",
+      "authorized_submitter": "0xDD253140f2dfe04f8c6B2e5150De72F3327fb73D",
+      "authorization_tx": "0xe6e226a6f1fac1df9d568acec6da50fe21b1b81743f2c8f72e3523fae264332b",
+      "escrow": {
+        "asset": "native GEN",
+        "decimals": 18,
+        "payout_rule": "first submission at or above the task threshold",
+        "creator_withdrawal": "locked until winner or expiry",
+        "settlement_grace_seconds": 86400
+      },
       "write_methods": [
-        { "name": "create_task", "args": ["title: str", "description: str", "criteria: str", "reward_points: uint256"], "returns": "str (task_id)" },
-        { "name": "update_task_metadata", "args": ["task_id: str", "title: str", "description: str", "criteria: str"], "returns": "void" },
-        { "name": "close_task", "args": ["task_id: str"], "returns": "void" },
-        { "name": "reopen_task", "args": ["task_id: str"], "returns": "void" },
-        { "name": "cancel_task", "args": ["task_id: str", "reason: str"], "returns": "void" },
-        { "name": "set_authorized_submitter", "args": ["submitter: Address"], "returns": "void" }
+        {
+          "name": "create_task",
+          "payable": true,
+          "args": [
+            "title: str",
+            "description: str",
+            "criteria: str",
+            "reward_points: uint256",
+            "payout_threshold: uint256",
+            "duration_seconds: uint256"
+          ],
+          "returns": "str (task_id)"
+        },
+        {
+          "name": "reopen_task",
+          "payable": true,
+          "args": [
+            "task_id: str",
+            "payout_threshold: uint256",
+            "duration_seconds: uint256"
+          ],
+          "returns": "void"
+        },
+        {
+          "name": "refund_expired_task",
+          "args": ["task_id: str"],
+          "returns": "void"
+        },
+        {
+          "name": "record_submission",
+          "args": [
+            "task_id: str",
+            "sub_id: str",
+            "worker: str",
+            "submitted_at: uint256"
+          ],
+          "returns": "void"
+        },
+        {
+          "name": "record_evaluation",
+          "args": [
+            "task_id: str",
+            "sub_id: str",
+            "worker: str",
+            "score: uint256",
+            "points_awarded: uint256"
+          ],
+          "returns": "void"
+        },
+        {
+          "name": "record_withdrawal",
+          "args": ["task_id: str", "sub_id: str"],
+          "returns": "void"
+        },
+        {
+          "name": "set_authorized_submitter",
+          "args": ["submitter: Address"],
+          "returns": "void"
+        }
       ],
       "view_methods": [
-        { "name": "get_task", "args": ["task_id: str"], "returns": "str (JSON)" },
-        { "name": "get_task_submissions", "args": ["task_id: str"], "returns": "str (JSON array)" },
-        { "name": "get_task_stats", "args": ["task_id: str"], "returns": "str (JSON)" },
-        { "name": "get_task_count", "args": [], "returns": "uint256" },
-        { "name": "get_active_task_count", "args": [], "returns": "uint256" },
-        { "name": "get_platform_stats", "args": [], "returns": "str (JSON)" }
+        {
+          "name": "get_task",
+          "args": ["task_id: str"],
+          "returns": "str (JSON)"
+        },
+        {
+          "name": "get_task_escrow",
+          "args": ["task_id: str"],
+          "returns": "str (JSON)"
+        },
+        {
+          "name": "get_task_stats",
+          "args": ["task_id: str"],
+          "returns": "str (JSON)"
+        },
+        {
+          "name": "get_platform_stats",
+          "args": [],
+          "returns": "str (JSON)"
+        },
+        {
+          "name": "get_task_count",
+          "args": [],
+          "returns": "uint256"
+        },
+        {
+          "name": "get_contract_balance",
+          "args": [],
+          "returns": "uint256"
+        }
       ]
     },
     "ProofOfImpact": {
-      "address": "0xa37000f1522f9102D0D6EF16E9061faA3BF91C68",
-      "deployment_tx": "0x59d86274b26d1d266c587e1e54762ce51be79f6dd5b106104f4493d7556888a5",
-      "version": "3.1.0",
+      "address": "0xDD253140f2dfe04f8c6B2e5150De72F3327fb73D",
+      "deployment_tx": "0xa78c4f4e760374bac36ef4202bda0bbc04df71874f7d9fee2c8ef7b1b57c673c",
+      "version": "4.0.0",
       "evidence_consensus": "strict_eq independent URL fetch followed by prompt_comparative scoring",
       "constructor_args": [
         "task_manager_address: Address",
         "leaderboard_address: Address"
       ],
       "write_methods": [
-        { "name": "submit_work", "args": ["task_id: str", "work_url: str", "description: str"], "returns": "str (sub_id)" },
-        { "name": "evaluate_submission", "args": ["sub_id: str"], "returns": "str (AI JSON result)" },
-        { "name": "revise_submission", "args": ["sub_id: str", "work_url: str", "description: str"], "returns": "void" },
-        { "name": "withdraw_submission", "args": ["sub_id: str"], "returns": "void" },
-        { "name": "set_task_manager_contract", "args": ["task_manager_address: Address"], "returns": "void" },
-        { "name": "set_leaderboard_contract", "args": ["leaderboard_address: Address"], "returns": "void" },
-        { "name": "set_paused", "args": ["paused: uint256"], "returns": "void" }
+        {
+          "name": "submit_work",
+          "args": ["task_id: str", "work_url: str", "description: str"],
+          "returns": "str (sub_id)"
+        },
+        {
+          "name": "evaluate_submission",
+          "args": ["sub_id: str"],
+          "returns": "str (AI JSON result)"
+        },
+        {
+          "name": "retry_task_settlement",
+          "args": ["sub_id: str"],
+          "returns": "void"
+        },
+        {
+          "name": "withdraw_submission",
+          "args": ["sub_id: str"],
+          "returns": "void"
+        },
+        {
+          "name": "set_task_manager_contract",
+          "args": ["task_manager_address: Address"],
+          "returns": "void"
+        },
+        {
+          "name": "set_leaderboard_contract",
+          "args": ["leaderboard_address: Address"],
+          "returns": "void"
+        }
       ],
       "view_methods": [
-        { "name": "get_task", "args": ["task_id: str"], "returns": "str (proxied JSON from TaskManager)" },
-        { "name": "get_submission", "args": ["sub_id: str"], "returns": "str (JSON)" },
-        { "name": "get_score", "args": ["sub_id: str"], "returns": "uint256" },
-        { "name": "get_leaderboard_score", "args": ["address: str"], "returns": "uint256" },
-        { "name": "get_submission_evaluation", "args": ["sub_id: str"], "returns": "str (JSON)" },
-        { "name": "can_submit", "args": ["task_id: str", "worker: str"], "returns": "str (JSON)" },
-        { "name": "get_submission_count", "args": [], "returns": "uint256" },
-        { "name": "get_evaluated_count", "args": [], "returns": "uint256" },
-        { "name": "get_platform_stats", "args": [], "returns": "str (JSON)" },
-        { "name": "get_task_manager_contract", "args": [], "returns": "str" },
-        { "name": "get_leaderboard_contract", "args": [], "returns": "str" }
+        {
+          "name": "get_task",
+          "args": ["task_id: str"],
+          "returns": "str (proxied JSON from TaskManager)"
+        },
+        {
+          "name": "get_submission",
+          "args": ["sub_id: str"],
+          "returns": "str (JSON)"
+        },
+        {
+          "name": "get_submission_evaluation",
+          "args": ["sub_id: str"],
+          "returns": "str (JSON)"
+        },
+        {
+          "name": "can_submit",
+          "args": ["task_id: str", "worker: str"],
+          "returns": "str (JSON)"
+        },
+        {
+          "name": "get_platform_stats",
+          "args": [],
+          "returns": "str (JSON)"
+        }
       ]
     },
     "GlobalLeaderboard": {
       "address": "0xc335b7326D70067373b7c8c88f42803BcDcC1D5C",
       "deployment_tx": "0x4d86e46fdedfd082f222baf02159ff5514e438bb1f1e76c167d3018f80851d4f",
-      "authorized_writer": "0xa37000f1522f9102D0D6EF16E9061faA3BF91C68",
+      "authorized_writer": "0xDD253140f2dfe04f8c6B2e5150De72F3327fb73D",
+      "authorization_tx": "0x28354a94af2a25a70835b12c1d14edfd5741f6b52431b3be409ef051674eacc3",
       "write_methods": [
-        { "name": "set_authorized_writer", "args": ["writer: Address"], "returns": "void" },
-        { "name": "record_score", "args": ["contributor: str", "score: uint256"], "returns": "void" },
-        { "name": "set_score", "args": ["contributor: str", "score: uint256"], "returns": "void" },
-        { "name": "reset_score", "args": ["contributor: str"], "returns": "void" }
+        {
+          "name": "set_authorized_writer",
+          "args": ["writer: Address"],
+          "returns": "void"
+        },
+        {
+          "name": "record_score",
+          "args": ["contributor: str", "score: uint256"],
+          "returns": "void"
+        },
+        {
+          "name": "set_score",
+          "args": ["contributor: str", "score: uint256"],
+          "returns": "void"
+        }
       ],
       "view_methods": [
-        { "name": "get_score", "args": ["contributor: str"], "returns": "uint256" },
-        { "name": "get_all_entries", "args": [], "returns": "str (JSON)" },
-        { "name": "get_top", "args": ["n: uint256"], "returns": "str (JSON)" },
-        { "name": "get_contributor_count", "args": [], "returns": "uint256" },
-        { "name": "get_authorized_writer", "args": [], "returns": "str" }
+        {
+          "name": "get_all_entries",
+          "args": [],
+          "returns": "str (JSON)"
+        },
+        {
+          "name": "get_top",
+          "args": ["n: uint256"],
+          "returns": "str (JSON)"
+        },
+        {
+          "name": "get_authorized_writer",
+          "args": [],
+          "returns": "str"
+        }
       ]
+    }
+  },
+  "verified_transactions": {
+    "escrow_smoke_test": {
+      "tx": "0xe5fd2c69f520988b0918eb431ad7a547451642c725dcfe404a94dd218705440c",
+      "task_id": "task-0",
+      "deposit_wei": "1000000000000000",
+      "deposit_gen": "0.001",
+      "contract_balance_wei_after": "1000000000000000"
     }
   }
 }

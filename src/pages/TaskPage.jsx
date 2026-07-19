@@ -1,24 +1,41 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { getTask, loadSubmissionsForTask } from '../lib/contract'
-import { truncateAddress } from '../lib/utils'
+import {
+  getTask,
+  getTaskEscrow,
+  getTaskStats,
+  loadSubmissionsForTask,
+  refundExpiredTask,
+} from '../lib/contract'
+import { formatDeadline, formatGen, truncateAddress } from '../lib/utils'
+import { useWallet } from '../context/WalletContext'
+import { useToast } from '../context/ToastContext'
 import ScoreCircle from '../components/ScoreCircle'
 import Spinner from '../components/Spinner'
 
 export default function TaskPage() {
   const { taskId } = useParams()
+  const { isConnected } = useWallet()
+  const { addToast } = useToast()
   const [task, setTask] = useState(null)
+  const [escrow, setEscrow] = useState(null)
+  const [stats, setStats] = useState(null)
   const [submissions, setSubmissions] = useState([])
   const [loading, setLoading] = useState(true)
+  const [refunding, setRefunding] = useState(false)
 
   useEffect(() => {
     async function load() {
       try {
-        const [t, subs] = await Promise.all([
+        const [t, taskEscrow, taskStats, subs] = await Promise.all([
           getTask(taskId),
+          getTaskEscrow(taskId),
+          getTaskStats(taskId),
           loadSubmissionsForTask(taskId),
         ])
         setTask(t)
+        setEscrow(taskEscrow)
+        setStats(taskStats)
         setSubmissions(subs)
       } catch (e) {
         console.error('Failed to load task:', e)
@@ -28,6 +45,35 @@ export default function TaskPage() {
     }
     load()
   }, [taskId])
+
+  async function handleRefund() {
+    if (!isConnected) {
+      addToast({ type: 'warning', message: 'Connect your wallet from the header first' })
+      return
+    }
+
+    setRefunding(true)
+    try {
+      const result = await refundExpiredTask(taskId)
+      addToast({
+        type: 'success',
+        message: 'Expired bounty returned to the task creator',
+        txHash: result.hash,
+      })
+      const [nextTask, nextEscrow, nextStats] = await Promise.all([
+        getTask(taskId),
+        getTaskEscrow(taskId),
+        getTaskStats(taskId),
+      ])
+      setTask(nextTask)
+      setEscrow(nextEscrow)
+      setStats(nextStats)
+    } catch (error) {
+      addToast({ type: 'error', message: error.message || 'Refund failed' })
+    } finally {
+      setRefunding(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -48,6 +94,24 @@ export default function TaskPage() {
     )
   }
 
+  const now = Math.floor(Date.now() / 1000)
+  const deadline = Number(task.deadline || escrow?.deadline || 0)
+  const refundAvailableAt = Number(
+    task.refund_available_at || escrow?.refund_available_at || 0,
+  )
+  const deadlinePassed = deadline > 0 && now > deadline
+  const visibleStatus =
+    task.status === 'open' && deadlinePassed ? 'expired' : task.status
+  const remainingWei = task.escrow_remaining_wei ?? escrow?.remaining_wei ?? '0'
+  const pendingCount = Number(stats?.pending_submissions || 0)
+  const canRefund =
+    task.status === 'open' &&
+    refundAvailableAt > 0 &&
+    now > refundAvailableAt &&
+    pendingCount === 0 &&
+    BigInt(remainingWei || 0) > 0n
+  const canSubmit = task.status === 'open' && !deadlinePassed
+
   return (
     <div className="max-w-4xl mx-auto px-6 py-10 relative z-10 pb-16 fade-in-up">
       {/* Back button */}
@@ -64,11 +128,14 @@ export default function TaskPage() {
           <h1 className="font-heading text-2xl font-semibold text-white tracking-wide">{task.title}</h1>
           <div className="flex items-center gap-2.5 shrink-0 ml-4">
             <span className={`text-[11px] px-2.5 py-1 rounded-full font-medium uppercase tracking-wide ${
-              task.status === 'open'
+              visibleStatus === 'open'
                 ? 'bg-[#8B5CF6]/10 border border-[#8B5CF6]/50 text-[#8B5CF6]'
                 : 'bg-white/5 border border-white/10 text-white/60'
             }`}>
-              {task.status}
+              {visibleStatus}
+            </span>
+            <span className="px-2.5 py-1 rounded-full bg-[#0ea5e9]/10 border border-[#0ea5e9]/40 text-[#0ea5e9] text-[11px] font-bold">
+              {formatGen(task.escrow_total_wei ?? escrow?.total_wei)} GEN
             </span>
             <span className="px-2.5 py-1 rounded-full bg-[#8B5CF6]/10 border border-[#8B5CF6]/50 text-[#8B5CF6] text-[11px] font-bold">
               {task.reward_points} pts
@@ -83,6 +150,44 @@ export default function TaskPage() {
           <p className="text-sm text-white/80 font-sans">{task.criteria}</p>
         </div>
 
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-4 gap-x-6 py-5 mb-5 border-y border-white/10">
+          <div>
+            <p className="text-[11px] text-white/35 uppercase mb-1">Escrow</p>
+            <p className="font-mono text-sm text-white">
+              {formatGen(remainingWei)} GEN remaining
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] text-white/35 uppercase mb-1">Winning score</p>
+            <p className="font-mono text-sm text-white">{task.payout_threshold ?? escrow?.payout_threshold}/100</p>
+          </div>
+          <div>
+            <p className="text-[11px] text-white/35 uppercase mb-1">Submission deadline</p>
+            <p className="text-sm text-white">{formatDeadline(deadline)}</p>
+          </div>
+        </div>
+
+        {task.winner && (
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-5 text-sm">
+            <span className="text-white/50">Winning submission</span>
+            <span className="font-mono text-[#0ea5e9]">
+              {task.winning_submission} by {truncateAddress(task.winner)}
+            </span>
+          </div>
+        )}
+
+        {canRefund && (
+          <button
+            type="button"
+            onClick={handleRefund}
+            disabled={refunding}
+            className="mb-5 px-4 py-2.5 border border-[#0ea5e9]/40 text-[#0ea5e9] hover:bg-[#0ea5e9]/10 rounded-lg text-sm font-semibold disabled:opacity-40 inline-flex items-center gap-2"
+          >
+            {refunding && <Spinner size="sm" />}
+            Return expired bounty
+          </button>
+        )}
+
         <p className="text-xs text-white/40 font-sans">
           Created by <span className="font-mono text-white/60">{truncateAddress(task.creator)}</span>
         </p>
@@ -94,7 +199,7 @@ export default function TaskPage() {
           <h2 className="font-heading text-lg font-semibold text-white tracking-wide">
             Submissions ({submissions.length})
           </h2>
-          {task.status === 'open' && (
+          {canSubmit && (
             <Link
               to={`/task/${taskId}/submit`}
               className="heroSecondary px-5 py-2.5 rounded-full text-sm font-medium"

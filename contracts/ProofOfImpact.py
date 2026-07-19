@@ -1,10 +1,11 @@
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 
 from genlayer import *
+from datetime import datetime, timezone
 import json
 
 
-CONTRACT_VERSION = "3.1.0"
+CONTRACT_VERSION = "4.0.0"
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
 TASK_OPEN = "open"
@@ -330,6 +331,10 @@ class ProofOfImpact(gl.Contract):
     leaderboard_contract: Address
 
     def __init__(self, task_manager_address: Address, leaderboard_address: Address):
+        if str(task_manager_address).lower() == ZERO_ADDRESS:
+            raise gl.vm.UserError("task manager address cannot be zero")
+        if str(leaderboard_address).lower() == ZERO_ADDRESS:
+            raise gl.vm.UserError("leaderboard address cannot be zero")
         self.owner = gl.message.sender_address
         self.task_manager_contract = task_manager_address
         self.leaderboard_contract = leaderboard_address
@@ -342,6 +347,9 @@ class ProofOfImpact(gl.Contract):
 
     def _sender(self) -> str:
         return normalize_address(str(gl.message.sender_address))
+
+    def _now(self) -> int:
+        return int(datetime.now(timezone.utc).timestamp())
 
     def _is_owner(self) -> bool:
         return gl.message.sender_address == self.owner
@@ -433,22 +441,42 @@ class ProofOfImpact(gl.Contract):
     def _leaderboard_is_set(self) -> bool:
         return str(self.leaderboard_contract).lower() != ZERO_ADDRESS
 
-    def _record_task_submission(self, task_id: str, sub_id: str, worker: str) -> None:
+    def _record_task_submission(
+        self,
+        task_id: str,
+        sub_id: str,
+        worker: str,
+        submitted_at: int,
+    ) -> None:
         if self._task_manager_is_set():
-            self._task_manager().emit(on="accepted").record_submission(
+            self._task_manager().emit(on="finalized").record_submission(
                 task_id,
                 sub_id,
                 worker,
+                u256(submitted_at),
             )
 
-    def _record_task_withdrawal(self, task_id: str) -> None:
+    def _record_task_withdrawal(self, task_id: str, sub_id: str) -> None:
         if self._task_manager_is_set():
-            self._task_manager().emit(on="accepted").record_withdrawal(task_id)
-
-    def _record_task_evaluation(self, task_id: str, points_awarded: int) -> None:
-        if self._task_manager_is_set():
-            self._task_manager().emit(on="accepted").record_evaluation(
+            self._task_manager().emit(on="finalized").record_withdrawal(
                 task_id,
+                sub_id,
+            )
+
+    def _record_task_evaluation(
+        self,
+        task_id: str,
+        sub_id: str,
+        worker: str,
+        score: int,
+        points_awarded: int,
+    ) -> None:
+        if self._task_manager_is_set():
+            self._task_manager().emit(on="finalized").record_evaluation(
+                task_id,
+                sub_id,
+                worker,
+                u256(score),
                 u256(points_awarded),
             )
 
@@ -474,7 +502,7 @@ class ProofOfImpact(gl.Contract):
 
         if self._leaderboard_is_set():
             leaderboard = gl.get_contract_at(self.leaderboard_contract)
-            leaderboard.emit(on="accepted").record_score(
+            leaderboard.emit(on="finalized").record_score(
                 normalized_worker,
                 u256(points),
             )
@@ -492,11 +520,15 @@ class ProofOfImpact(gl.Contract):
     @gl.public.write
     def set_leaderboard_contract(self, leaderboard_address: Address) -> None:
         self._require_owner()
+        if str(leaderboard_address).lower() == ZERO_ADDRESS:
+            raise gl.vm.UserError("leaderboard address cannot be zero")
         self.leaderboard_contract = leaderboard_address
 
     @gl.public.write
     def set_task_manager_contract(self, task_manager_address: Address) -> None:
         self._require_owner()
+        if str(task_manager_address).lower() == ZERO_ADDRESS:
+            raise gl.vm.UserError("task manager address cannot be zero")
         self.task_manager_contract = task_manager_address
 
     @gl.public.write
@@ -629,6 +661,12 @@ class ProofOfImpact(gl.Contract):
             raise gl.vm.UserError("task is not open")
 
         worker = self._sender()
+        if worker == normalize_address(str(task_data.get("creator", ""))):
+            raise gl.vm.UserError("task creator cannot submit to own task")
+        submitted_at = self._now()
+        deadline = int(task_data.get("deadline", 0))
+        if deadline <= 0 or submitted_at > deadline:
+            raise gl.vm.UserError("task submission deadline has passed")
         if self._has_blocking_submission(task_id, worker):
             raise gl.vm.UserError("worker already submitted for this task")
 
@@ -647,6 +685,7 @@ class ProofOfImpact(gl.Contract):
             "work_url": clean_url,
             "description": clean_description,
             "status": SUBMISSION_PENDING,
+            "submitted_at": submitted_at,
             "revision": 1,
         }
 
@@ -668,7 +707,12 @@ class ProofOfImpact(gl.Contract):
         self._increment_map_counter(self.worker_submission_count, worker, 1)
 
         if self._task_manager_is_set():
-            self._record_task_submission(task_id, sub_id, worker)
+            self._record_task_submission(
+                task_id,
+                sub_id,
+                worker,
+                submitted_at,
+            )
         else:
             self._increment_map_counter(self.task_pending_submissions, task_id, 1)
             task_data["submission_count"] = int(task_data.get("submission_count", 0)) + 1
@@ -695,6 +739,8 @@ class ProofOfImpact(gl.Contract):
         task_data = self._get_task(sub_data["task_id"])
         if task_data.get("status", "") != TASK_OPEN:
             raise gl.vm.UserError("task is not open")
+        if self._now() > int(task_data.get("deadline", 0)):
+            raise gl.vm.UserError("task submission deadline has passed")
 
         sub_data["work_url"] = validate_url(work_url)
         sub_data["description"] = validate_text(
@@ -719,7 +765,7 @@ class ProofOfImpact(gl.Contract):
         self._store_submission(sub_id, sub_data)
 
         if self._task_manager_is_set():
-            self._record_task_withdrawal(task_id)
+            self._record_task_withdrawal(task_id, sub_id)
         else:
             self._decrement_map_counter(self.task_pending_submissions, task_id)
         self.worker_task_submission[self._worker_task_key(task_id, worker)] = (
@@ -744,6 +790,7 @@ class ProofOfImpact(gl.Contract):
         work_url = str(sub_data["work_url"])
         work_description = str(sub_data["description"])
         task_reward = int(task_data["reward_points"])
+        payout_threshold = int(task_data.get("payout_threshold", 100))
 
         result = smart_evaluate_submission(
             task_title,
@@ -762,7 +809,13 @@ class ProofOfImpact(gl.Contract):
         self.score_storage[sub_id] = u256(score)
         self._award_points(task_id, worker, points_earned)
         if self._task_manager_is_set():
-            self._record_task_evaluation(task_id, points_earned)
+            self._record_task_evaluation(
+                task_id,
+                sub_id,
+                worker,
+                score,
+                points_earned,
+            )
         else:
             self._decrement_map_counter(self.task_pending_submissions, task_id)
             self._increment_map_counter(self.task_evaluated_submissions, task_id, 1)
@@ -781,6 +834,8 @@ class ProofOfImpact(gl.Contract):
         sub_data["url_valid"] = result["url_valid"]
         sub_data["risk_flags"] = result["risk_flags"]
         sub_data["points_earned"] = points_earned
+        sub_data["payout_threshold"] = payout_threshold
+        sub_data["payout_eligible"] = score >= payout_threshold
         sub_data["evaluated_by"] = evaluator
         self._store_submission(sub_id, sub_data)
 
@@ -792,6 +847,20 @@ class ProofOfImpact(gl.Contract):
             self._store_task(task_id, task_data)
 
         return json.dumps(result, sort_keys=True)
+
+    @gl.public.write
+    def retry_task_settlement(self, sub_id: str) -> None:
+        sub_data = self._get_submission(sub_id)
+        if sub_data.get("status", "") != SUBMISSION_EVALUATED:
+            raise gl.vm.UserError("submission has not been evaluated")
+
+        self._record_task_evaluation(
+            str(sub_data["task_id"]),
+            sub_id,
+            normalize_address(str(sub_data["worker"])),
+            int(sub_data.get("score", 0)),
+            int(sub_data.get("points_earned", 0)),
+        )
 
     @gl.public.write
     def sync_leaderboard_score(self, contributor: str) -> None:
@@ -806,7 +875,7 @@ class ProofOfImpact(gl.Contract):
             else u256(0)
         )
         leaderboard = gl.get_contract_at(self.leaderboard_contract)
-        leaderboard.emit(on="accepted").set_score(normalized, points)
+        leaderboard.emit(on="finalized").set_score(normalized, points)
 
     @gl.public.view
     def get_task(self, task_id: str) -> str:
@@ -871,6 +940,8 @@ class ProofOfImpact(gl.Contract):
                 "url_valid": sub_data.get("url_valid", False),
                 "risk_flags": sub_data.get("risk_flags", []),
                 "points_earned": sub_data.get("points_earned", 0),
+                "payout_threshold": sub_data.get("payout_threshold", 100),
+                "payout_eligible": sub_data.get("payout_eligible", False),
                 "evaluated_by": sub_data.get("evaluated_by", ""),
             },
             sort_keys=True,
@@ -889,6 +960,15 @@ class ProofOfImpact(gl.Contract):
             return json.dumps({"ok": False, "reason": "task is not open"})
 
         normalized = normalize_address(worker)
+        if normalized == normalize_address(str(task_data.get("creator", ""))):
+            return json.dumps(
+                {"ok": False, "reason": "task creator cannot submit to own task"}
+            )
+        deadline = int(task_data.get("deadline", 0))
+        if deadline <= 0 or self._now() > deadline:
+            return json.dumps(
+                {"ok": False, "reason": "task submission deadline has passed"}
+            )
         if self._has_blocking_submission(task_id, normalized):
             return json.dumps({"ok": False, "reason": "worker already submitted"})
 

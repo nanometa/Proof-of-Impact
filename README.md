@@ -4,14 +4,14 @@
 
 # Proof of Impact
 
-**AI-native work verification on GenLayer. Create tasks, submit proof URLs, and let decentralized AI validators score real-world impact on-chain.**
+**Fund work with native GEN, submit verifiable evidence, and let decentralized AI validators score and settle the bounty on-chain.**
 
 [**Live Demo**](https://proof-of-impact-pi.vercel.app/) - [**Bradbury Explorer**](https://explorer-bradbury.genlayer.com) - [**GenLayer**](https://genlayer.com)
 
 [![Live](https://img.shields.io/badge/Live-proof--of--impact--pi.vercel.app-10b981?style=flat-square&logo=vercel)](https://proof-of-impact-pi.vercel.app/)
 [![Network](https://img.shields.io/badge/Network-Bradbury%20Testnet-8b5cf6?style=flat-square)](https://explorer-bradbury.genlayer.com)
 [![Chain ID](https://img.shields.io/badge/Chain%20ID-4221-3b82f6?style=flat-square)](https://docs.genlayer.com/developers/networks)
-[![Version](https://img.shields.io/badge/ProofOfImpact-v3.1.0-22c55e?style=flat-square)](#current-bradbury-deployment)
+[![Version](https://img.shields.io/badge/ProofOfImpact-v4.0.0-22c55e?style=flat-square)](#current-bradbury-deployment)
 [![License](https://img.shields.io/badge/License-MIT-64748b?style=flat-square)](#license)
 
 </div>
@@ -42,8 +42,9 @@
 
 **Proof of Impact** is a decentralized work marketplace built on the
 **GenLayer Bradbury Testnet**. A task creator publishes a mission with custom
-criteria, contributors submit evidence through a URL, and GenLayer validators
-use AI-assisted consensus to score the submission from `0` to `100`.
+criteria and locks a native GEN bounty in the `TaskManager` contract.
+Contributors submit evidence through a URL, and GenLayer validators use
+AI-assisted consensus to score the submission from `0` to `100`.
 
 The result is written on-chain with:
 
@@ -52,7 +53,8 @@ The result is written on-chain with:
 - detailed feedback,
 - criteria-level scoring,
 - risk flags,
-- and contributor points pushed into a global leaderboard.
+- contributor points pushed into a global leaderboard,
+- and a one-time GEN payout when the winning threshold is reached.
 
 The project demonstrates a practical GenLayer pattern: smart contracts that can
 reason over real-world evidence without depending on a centralized reviewer or a
@@ -71,6 +73,7 @@ into an intelligent contract:
 | Reviewers are slow | AI validators evaluate directly from the contract |
 | Subjective scoring is opaque | score, feedback, and criteria scores are stored on-chain |
 | Weak evidence can slip through | AI validators evaluate the fetched evidence against the task criteria |
+| Workers have no payment guarantee | native GEN leaves the creator wallet and remains locked in contract escrow |
 | Leaderboards are off-chain | cumulative impact points are stored in `GlobalLeaderboard` |
 | Historical submissions are expensive to scrape | rankings are updated directly by contract writes |
 
@@ -78,7 +81,10 @@ into an intelligent contract:
 
 ## Key Features
 
-- **Task Marketplace** - create open tasks with title, description, criteria, and reward points.
+- **Native GEN Escrow** - every task requires a payable GEN deposit held by `TaskManager`.
+- **Guaranteed Settlement** - the first qualifying submission receives the full bounty; creators cannot withdraw it early.
+- **Expiry Protection** - a bounty can be refunded only after the deadline and a 24-hour finalization window.
+- **Task Marketplace** - create tasks with custom criteria, reward points, payout threshold, and deadline.
 - **AI-Powered Evaluation** - validators score submissions using task-specific evidence and criteria.
 - **Independent Evidence Consensus** - validators independently re-fetch the submitted URL before AI scoring can reach consensus.
 - **On-Chain Leaderboard** - contributor points are written to a dedicated leaderboard contract.
@@ -91,60 +97,44 @@ into an intelligent contract:
 
 ## Current Bradbury Deployment
 
-This README documents the active `v3.1-independent-evidence-consensus` deployment on
-GenLayer Bradbury Testnet.
+This README documents the active
+`v4-native-gen-escrow-independent-evidence` deployment on GenLayer Bradbury
+Testnet.
 
 | Contract | Version | Address | Purpose |
 | --- | --- | --- | --- |
-| `TaskManager` | `3.0.0` | [`0x90Cad9eBfeCcCb1Dafe7070b93a89dfDe9E4Bd50`](https://explorer-bradbury.genlayer.com/address/0x90Cad9eBfeCcCb1Dafe7070b93a89dfDe9E4Bd50) | task creation, task status, task counters |
-| `ProofOfImpact` | `3.1.0` | [`0xa37000f1522f9102D0D6EF16E9061faA3BF91C68`](https://explorer-bradbury.genlayer.com/address/0xa37000f1522f9102D0D6EF16E9061faA3BF91C68) | independent evidence consensus, AI evaluation, points |
+| `TaskManager` | `4.0.0` | [`0xbDbC9FEdBac47329D02fFA1Edffc7179d11e5c79`](https://explorer-bradbury.genlayer.com/address/0xbDbC9FEdBac47329D02fFA1Edffc7179d11e5c79) | payable task creation, native GEN escrow, payout and refund |
+| `ProofOfImpact` | `4.0.0` | [`0xDD253140f2dfe04f8c6B2e5150De72F3327fb73D`](https://explorer-bradbury.genlayer.com/address/0xDD253140f2dfe04f8c6B2e5150De72F3327fb73D) | independent evidence consensus, AI evaluation, settlement messages |
 | `GlobalLeaderboard` | current | [`0xc335b7326D70067373b7c8c88f42803BcDcC1D5C`](https://explorer-bradbury.genlayer.com/address/0xc335b7326D70067373b7c8c88f42803BcDcC1D5C) | cumulative contributor rankings |
 
 Deployment and authorization transactions:
 
 | Action | Tx |
 | --- | --- |
-| Deploy `TaskManager` | [`0x370a653bebc20da0bad82b1ddaff0a1e105fa74c593d0f40c33c62741b4952fa`](https://explorer-bradbury.genlayer.com/tx/0x370a653bebc20da0bad82b1ddaff0a1e105fa74c593d0f40c33c62741b4952fa) |
-| Deploy `ProofOfImpact v3.1.0` | [`0x59d86274b26d1d266c587e1e54762ce51be79f6dd5b106104f4493d7556888a5`](https://explorer-bradbury.genlayer.com/tx/0x59d86274b26d1d266c587e1e54762ce51be79f6dd5b106104f4493d7556888a5) |
+| Deploy `TaskManager v4.0.0` | [`0x99ddbf26dc99c811e7f13e42a4a521a73fa28e2fe8495274f5f3d3d790db2691`](https://explorer-bradbury.genlayer.com/tx/0x99ddbf26dc99c811e7f13e42a4a521a73fa28e2fe8495274f5f3d3d790db2691) |
+| Deploy `ProofOfImpact v4.0.0` | [`0xa78c4f4e760374bac36ef4202bda0bbc04df71874f7d9fee2c8ef7b1b57c673c`](https://explorer-bradbury.genlayer.com/tx/0xa78c4f4e760374bac36ef4202bda0bbc04df71874f7d9fee2c8ef7b1b57c673c) |
 | Deploy `GlobalLeaderboard` | [`0x4d86e46fdedfd082f222baf02159ff5514e438bb1f1e76c167d3018f80851d4f`](https://explorer-bradbury.genlayer.com/tx/0x4d86e46fdedfd082f222baf02159ff5514e438bb1f1e76c167d3018f80851d4f) |
-| Authorize `ProofOfImpact` in `TaskManager` | verified by `get_authorized_submitter()` |
-| Authorize `ProofOfImpact` in `GlobalLeaderboard` | verified by `get_authorized_writer()` |
+| Authorize `ProofOfImpact` in `TaskManager` | [`0xe6e226a6f1fac1df9d568acec6da50fe21b1b81743f2c8f72e3523fae264332b`](https://explorer-bradbury.genlayer.com/tx/0xe6e226a6f1fac1df9d568acec6da50fe21b1b81743f2c8f72e3523fae264332b) |
+| Authorize `ProofOfImpact` in `GlobalLeaderboard` | [`0x28354a94af2a25a70835b12c1d14edfd5741f6b52431b3be409ef051674eacc3`](https://explorer-bradbury.genlayer.com/tx/0x28354a94af2a25a70835b12c1d14edfd5741f6b52431b3be409ef051674eacc3) |
 
 ---
 
 ## Verified On-Chain Tests
 
-`ProofOfImpact v3.1.0` was tested directly on Bradbury with real
-transactions.
-
-Task: require a direct raw MIT license file containing the full license terms.
-
-Submitted URL:
-
-```text
-https://raw.githubusercontent.com/facebook/react/main/LICENSE
-```
-
-Result:
+The v4 escrow was tested directly on Bradbury with a real native GEN deposit.
 
 | Field | Value |
 | --- | --- |
-| Submission | `task-6`, `sub-0` |
-| Score | `100` |
-| Grade | `A` |
-| Points earned | `100` |
-| Evaluation tx | [`0x7dc84674f3ccae729f06e1216df8c62ea09eb2086adb4fc4a293856262d9c0ae`](https://explorer-bradbury.genlayer.com/tx/0x7dc84674f3ccae729f06e1216df8c62ea09eb2086adb4fc4a293856262d9c0ae) |
+| Transaction | [`0xe5fd2c69f520988b0918eb431ad7a547451642c725dcfe404a94dd218705440c`](https://explorer-bradbury.genlayer.com/tx/0xe5fd2c69f520988b0918eb431ad7a547451642c725dcfe404a94dd218705440c) |
+| Task | `task-0` |
+| Deposit | `0.001 GEN` |
+| Stored escrow | `1000000000000000 wei` |
+| Contract balance after | `1000000000000000 wei` |
+| Escrow state | `funded`, not settled |
 
-Negative control: the same task criteria were tested with a React source file
-instead of the requested license:
-
-```text
-https://raw.githubusercontent.com/facebook/react/main/packages/react/index.js
-```
-
-The independently fetched content was identified as the wrong artifact and
-received `0/F` with `wrong_artifact` and `misrepresentation` risk flags.
-Evaluation tx: [`0x11543c5836dc3c81ec96700a1441e4bc8a23ef4109c02d91a350ab3b1833be51`](https://explorer-bradbury.genlayer.com/tx/0x11543c5836dc3c81ec96700a1441e4bc8a23ef4109c02d91a350ab3b1833be51).
+Eight direct GenLayer tests also cover zero-deposit rejection, exact accounting,
+authorization, low-score retention, one-time payout, creator lockup, expiry
+grace, refund, self-submission rejection, and deadline enforcement.
 
 ---
 
@@ -159,29 +149,33 @@ Evaluation tx: [`0x11543c5836dc3c81ec96700a1441e4bc8a23ef4109c02d91a350ab3b1833b
         v
   React + Vite frontend
         |
-        | create_task()
+        | create_task(value = native GEN)
         v
-  TaskManager
+  TaskManager escrow
         |
-        | submit_work() / evaluate_submission()
+        | task data
         v
   ProofOfImpact
         |
-        | web evidence -> AI validator consensus
+        | independent web fetch -> AI validator consensus
         v
   Evaluation result stored on-chain
+        |                         |
+        | record_evaluation()     | record_score()
+        v                         v
+  TaskManager settlement     GlobalLeaderboard
         |
-        | record_score()
+        | finalized native transfer
         v
-  GlobalLeaderboard
+  Winning contributor
 ```
 
 ### Contract responsibilities
 
 | Contract | Responsibilities |
 | --- | --- |
-| `TaskManager.py` | creates tasks, tracks task status, submission counts, evaluated counts, and awarded points |
-| `ProofOfImpact.py` | validates submissions, evaluates evidence, stores score JSON, awards points, emits cross-contract writes |
+| `TaskManager.py` | receives native GEN, locks task bounties, tracks lifecycle, pays one winner, and refunds expired tasks |
+| `ProofOfImpact.py` | validates submissions, independently fetches evidence, stores evaluation JSON, and emits finalized settlement writes |
 | `global_leaderboard.py` | records cumulative contributor scores and returns ranked entries |
 
 This separation keeps each contract focused and avoids forcing the frontend to
@@ -248,8 +242,9 @@ After evaluation:
 
 - the submission JSON is updated,
 - `score_storage[sub_id]` is updated,
-- `TaskManager.record_evaluation()` is emitted,
-- `GlobalLeaderboard.record_score()` is emitted when points are greater than `0`.
+- `TaskManager.record_evaluation()` is emitted after finalization,
+- the first score at or above the task threshold schedules the native GEN transfer,
+- `GlobalLeaderboard.record_score()` is emitted after finalization when points are greater than `0`.
 
 ---
 
@@ -272,14 +267,14 @@ cp .env.example .env.local
 Active Bradbury configuration:
 
 ```bash
-VITE_TASK_MANAGER_ADDRESS=0x90Cad9eBfeCcCb1Dafe7070b93a89dfDe9E4Bd50
-VITE_PROOF_OF_IMPACT_ADDRESS=0xa37000f1522f9102D0D6EF16E9061faA3BF91C68
+VITE_TASK_MANAGER_ADDRESS=0xbDbC9FEdBac47329D02fFA1Edffc7179d11e5c79
+VITE_PROOF_OF_IMPACT_ADDRESS=0xDD253140f2dfe04f8c6B2e5150De72F3327fb73D
 VITE_GLOBAL_LEADERBOARD_ADDRESS=0xc335b7326D70067373b7c8c88f42803BcDcC1D5C
 ```
 
 The app uses:
 
-- `TaskManager` for task reads and creation,
+- `TaskManager` for payable task creation, escrow reads, and expired refunds,
 - `ProofOfImpact` for submissions and evaluation,
 - `GlobalLeaderboard` for rankings.
 
@@ -357,8 +352,8 @@ npx --yes genlayer@latest network info
 Read deployed contract state:
 
 ```bash
-npx --yes genlayer@latest call 0xa37000f1522f9102D0D6EF16E9061faA3BF91C68 get_version
-npx --yes genlayer@latest call 0x90Cad9eBfeCcCb1Dafe7070b93a89dfDe9E4Bd50 get_authorized_submitter
+npx --yes genlayer@latest call 0xDD253140f2dfe04f8c6B2e5150De72F3327fb73D get_version
+npx --yes genlayer@latest call 0xbDbC9FEdBac47329D02fFA1Edffc7179d11e5c79 get_authorized_submitter
 npx --yes genlayer@latest call 0xc335b7326D70067373b7c8c88f42803BcDcC1D5C get_authorized_writer
 ```
 
@@ -370,10 +365,10 @@ genvm-lint check contracts/TaskManager.py
 genvm-lint check contracts/global_leaderboard.py
 ```
 
-The currently published contracts deploy successfully on Bradbury, and the
-frontend passes:
+Run the direct escrow suite and production build:
 
 ```bash
+pytest tests/direct -v
 npm run build
 ```
 
@@ -388,6 +383,9 @@ Proof-of-Impact/
     TaskManager.py
     global_leaderboard.py
     contractABI.json
+  tests/
+    direct/
+      test_task_manager_escrow.py
   public/
     logo.svg
   src/
@@ -407,6 +405,9 @@ Proof-of-Impact/
 - Private keys and seed phrases must never be committed.
 - `.env`, `.env.local`, `.codex-py`, `node_modules`, and `dist` are ignored.
 - This repository stores only public contract addresses and public transaction hashes.
+- Task creators cannot cancel or close a funded bounty early; GEN remains locked until a qualifying winner or expiry.
+- Expiry refunds wait through a 24-hour settlement grace period so finalized submission messages can arrive.
+- Payout state is committed before the external transfer is scheduled, preventing duplicate settlement.
 - The browser may store a local burner key in local storage for GenLayer calls;
   that key is local-only and is not part of the repository.
 

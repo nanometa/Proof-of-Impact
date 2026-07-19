@@ -48,7 +48,8 @@ export function useContractWrite() {
   }, []);
 
   const createTask = useCallback(
-    (title, desc, criteria, points) => execute(_createTask, title, desc, criteria, points),
+    (title, desc, criteria, points, bounty, threshold, duration) =>
+      execute(_createTask, title, desc, criteria, points, bounty, threshold, duration),
     [execute]
   );
 

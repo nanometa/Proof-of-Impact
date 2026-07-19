@@ -2,14 +2,16 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
   getSubmission,
+  getTask,
   evaluateSubmission,
+  retryTaskSettlement,
   getScore,
   getSubmissionEvaluation,
   getCachedEvaluation,
 } from '../lib/contract'
 import { useWallet } from '../context/WalletContext'
 import { useToast } from '../context/ToastContext'
-import { getScoreColor } from '../lib/utils'
+import { formatGen } from '../lib/utils'
 import ScoreCircle from '../components/ScoreCircle'
 import GradeBadge from '../components/GradeBadge'
 import Spinner from '../components/Spinner'
@@ -31,14 +33,16 @@ function deriveGrade(score) {
 
 export default function SubmissionPage() {
   const { subId } = useParams()
-  const { isConnected, connect } = useWallet()
+  const { isConnected } = useWallet()
   const { addToast } = useToast()
 
   const [submission, setSubmission] = useState(null)
+  const [task, setTask] = useState(null)
   const [score, setScore] = useState(null)
   const [evaluation, setEvaluation] = useState(null)
   const [loading, setLoading] = useState(true)
   const [evaluating, setEvaluating] = useState(false)
+  const [settling, setSettling] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
 
   async function loadAll() {
@@ -46,6 +50,9 @@ export default function SubmissionPage() {
     try {
       const sub = await getSubmission(subId)
       setSubmission(sub)
+      if (sub?.task_id) {
+        setTask(await getTask(sub.task_id))
+      }
 
       if (sub?.status === 'evaluated') {
         const s = await getScore(subId)
@@ -67,7 +74,7 @@ export default function SubmissionPage() {
 
   async function handleEvaluate() {
     if (!isConnected) {
-      await connect()
+      addToast({ type: 'warning', message: 'Connect your wallet from the header first' })
       return
     }
     setEvaluating(true)
@@ -92,6 +99,28 @@ export default function SubmissionPage() {
       addToast({ type: 'error', message: e.message || 'Evaluation failed' })
     } finally {
       setEvaluating(false)
+    }
+  }
+
+  async function handleRetrySettlement() {
+    if (!isConnected) {
+      addToast({ type: 'warning', message: 'Connect your wallet from the header first' })
+      return
+    }
+
+    setSettling(true)
+    try {
+      const result = await retryTaskSettlement(subId)
+      addToast({
+        type: 'success',
+        message: 'Escrow settlement requested',
+        txHash: result.hash,
+      })
+      await loadAll()
+    } catch (error) {
+      addToast({ type: 'error', message: error.message || 'Settlement retry failed' })
+    } finally {
+      setSettling(false)
     }
   }
 
@@ -126,7 +155,14 @@ export default function SubmissionPage() {
       </Link>
 
       {isEvaluated ? (
-        <EvaluatedView submission={submission} score={score} evaluation={evaluation} />
+        <EvaluatedView
+          submission={submission}
+          task={task}
+          score={score}
+          evaluation={evaluation}
+          settling={settling}
+          onRetrySettlement={handleRetrySettlement}
+        />
       ) : (
         <PendingView
           submission={submission}
@@ -203,7 +239,14 @@ function PendingView({ submission, evaluating, currentStep, onEvaluate }) {
   )
 }
 
-function EvaluatedView({ submission, score, evaluation }) {
+function EvaluatedView({
+  submission,
+  task,
+  score,
+  evaluation,
+  settling,
+  onRetrySettlement,
+}) {
   // Prefer the on-chain evaluation and use the cached receipt as a fallback.
   const finalScore = evaluation?.score ?? score ?? 0
   const grade = evaluation?.grade ?? deriveGrade(finalScore)
@@ -211,6 +254,10 @@ function EvaluatedView({ submission, score, evaluation }) {
   const strengths = evaluation?.strengths || []
   const improvements = evaluation?.improvements || []
   const criteriaScores = evaluation?.criteria_scores || {}
+  const payoutEligible = Boolean(evaluation?.payout_eligible)
+  const isWinner = task?.winning_submission === submission.sub_id
+  const settlementPending =
+    payoutEligible && !task?.winner && task?.escrow_status === 'funded'
 
   return (
     <div className="space-y-6">
@@ -220,6 +267,27 @@ function EvaluatedView({ submission, score, evaluation }) {
         <div className="mt-4">
           <GradeBadge grade={grade} size="md" />
         </div>
+        <div className={`mt-5 px-4 py-2 rounded-lg border text-sm ${
+          isWinner
+            ? 'border-[#0ea5e9]/40 bg-[#0ea5e9]/10 text-[#0ea5e9]'
+            : 'border-white/10 bg-white/5 text-white/55'
+        }`}>
+          {isWinner
+            ? `${formatGen(task?.payout_wei)} GEN payout scheduled on-chain`
+            : payoutEligible
+              ? 'Winning score reached; escrow settlement is being finalized'
+              : `Score below the ${evaluation?.payout_threshold ?? task?.payout_threshold ?? 100}/100 payout threshold`}
+        </div>
+        {settlementPending && (
+          <button
+            type="button"
+            onClick={onRetrySettlement}
+            disabled={settling}
+            className="mt-3 px-4 py-2 rounded-lg border border-[#0ea5e9]/40 text-[#0ea5e9] hover:bg-[#0ea5e9]/10 text-sm font-semibold disabled:opacity-40"
+          >
+            {settling ? 'Requesting settlement...' : 'Retry escrow settlement'}
+          </button>
+        )}
       </div>
 
       {/* Submission details */}

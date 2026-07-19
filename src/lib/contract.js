@@ -8,7 +8,7 @@
  */
 import { createAccount, createClient } from 'genlayer-js'
 import { testnetBradbury } from 'genlayer-js/chains'
-import { custom } from 'viem'
+import { custom, parseUnits } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 
 const ADDRESS_PATTERN = /^0x[a-fA-F0-9]{40}$/
@@ -156,19 +156,55 @@ if (ethereumProvider) {
   })
 }
 
-export async function createTask(title, description, criteria, rewardPoints) {
+export async function createTask(
+  title,
+  description,
+  criteria,
+  rewardPoints,
+  bountyGen,
+  payoutThreshold,
+  durationSeconds,
+) {
   ensureConnected()
   const client = getSigningClient()
   const taskAddress = TASK_MANAGER_CONTRACT
 
   try {
+    const bountyWei = parseUnits(String(bountyGen).trim(), 18)
     clearReadCache()
     const hash = await client.writeContract({
       address: taskAddress,
       functionName: 'create_task',
-      args: [title, description, criteria, Number(rewardPoints)],
+      args: [
+        title,
+        description,
+        criteria,
+        Number(rewardPoints),
+        Number(payoutThreshold),
+        Number(durationSeconds),
+      ],
+      value: bountyWei,
     })
-    const result = await pollTx(hash)
+    const result = await pollTx(hash, { requireFinalized: true })
+    clearReadCache()
+    return result
+  } catch (e) {
+    throw new Error(extractError(e))
+  }
+}
+
+export async function refundExpiredTask(taskId) {
+  ensureConnected()
+  const client = getSigningClient()
+
+  try {
+    clearReadCache()
+    const hash = await client.writeContract({
+      address: TASK_MANAGER_CONTRACT,
+      functionName: 'refund_expired_task',
+      args: [taskId],
+    })
+    const result = await pollTx(hash, { requireFinalized: true })
     clearReadCache()
     return result
   } catch (e) {
@@ -187,7 +223,7 @@ export async function submitWork(taskId, workUrl, description) {
       functionName: 'submit_work',
       args: [taskId, workUrl, description],
     })
-    const result = await pollTx(hash)
+    const result = await pollTx(hash, { requireFinalized: true })
     clearReadCache()
     return result
   } catch (e) {
@@ -206,8 +242,27 @@ export async function evaluateSubmission(subId) {
       functionName: 'evaluate_submission',
       args: [subId],
     })
-    const result = await pollTx(hash)
+    const result = await pollTx(hash, { requireFinalized: true })
     cacheEvaluationFromReceipt(subId, result.receipt)
+    clearReadCache()
+    return result
+  } catch (e) {
+    throw new Error(extractError(e))
+  }
+}
+
+export async function retryTaskSettlement(subId) {
+  ensureConnected()
+  const client = getSigningClient()
+
+  try {
+    clearReadCache()
+    const hash = await client.writeContract({
+      address: CONTRACT_ADDRESS,
+      functionName: 'retry_task_settlement',
+      args: [subId],
+    })
+    const result = await pollTx(hash, { requireFinalized: true })
     clearReadCache()
     return result
   } catch (e) {
@@ -240,7 +295,7 @@ export function getCachedEvaluation(subId) {
   }
 }
 
-async function pollTx(hash) {
+async function pollTx(hash, { requireFinalized = false } = {}) {
   const client = getSigningClient()
   const start = Date.now()
 
@@ -248,7 +303,7 @@ async function pollTx(hash) {
     try {
       const tx = await client.getTransaction({ hash })
       const status = String(tx?.statusName || tx?.status_name || '').toUpperCase()
-      if (status === 'FINALIZED' || status === 'ACCEPTED') {
+      if (status === 'FINALIZED' || (!requireFinalized && status === 'ACCEPTED')) {
         return { hash, receipt: tx }
       }
       if (TERMINAL_TX_FAILURES.has(status)) {
@@ -341,6 +396,14 @@ function parseResult(value) {
 
 export async function getTask(taskId) {
   return parseResult(await safeTaskRead('get_task', [taskId]))
+}
+
+export async function getTaskEscrow(taskId) {
+  return parseResult(await safeTaskRead('get_task_escrow', [taskId]))
+}
+
+export async function getTaskStats(taskId) {
+  return parseResult(await safeTaskRead('get_task_stats', [taskId]))
 }
 
 export async function getSubmission(subId) {
@@ -437,31 +500,28 @@ export async function waitForTaskCount(previousCount = 0, timeoutMs = 45_000) {
 
 export async function loadSubmissionsForTask(taskId) {
   const ids = await loadSubmissionIdsForTask(taskId)
+  const byId = new Map()
 
   if (ids.length) {
-    const submissions = []
     for (const id of ids) {
       const submission = await getSubmission(id).catch(() => null)
-      if (submission) submissions.push(submission)
+      if (submission) byId.set(id, submission)
       await sleep(250)
     }
-    const fromTaskManager = submissions.filter(
-      (submission) => submission && submission.task_id === taskId,
-    )
-    if (fromTaskManager.length) return fromTaskManager
   }
 
   const count = await getSubmissionCount()
-  if (!count) return []
-
-  const submissions = []
   for (let index = 0; index < count; index += 1) {
-    const submission = await getSubmission(`sub-${index}`).catch(() => null)
-    if (submission) submissions.push(submission)
+    const subId = `sub-${index}`
+    if (byId.has(subId)) continue
+    const submission = await getSubmission(subId).catch(() => null)
+    if (submission) byId.set(subId, submission)
     if (index < count - 1) await sleep(250)
   }
 
-  return submissions.filter((submission) => submission && submission.task_id === taskId)
+  return [...byId.values()].filter(
+    (submission) => submission && submission.task_id === taskId,
+  )
 }
 
 export async function getAllLeaderboardEntries() {
@@ -550,7 +610,11 @@ function extractError(error) {
   const message = error?.message || String(error)
 
   if (message.includes('does not have enough funds')) {
-    return `Your signing wallet needs GEN tokens for gas fees. Burner address: ${getBurnerAddress()}`
+    return 'Your wallet needs enough GEN for the bounty and transaction fees.'
+  }
+
+  if (/cannot convert|invalid decimal|fractional component exceeds/i.test(message)) {
+    return 'Enter a valid GEN bounty with no more than 18 decimal places.'
   }
 
   const match = message.match(/UserError:\s*(.*)/)

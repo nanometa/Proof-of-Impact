@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { getTask, loadSubmissionIdsForTask, submitWork, waitForTaskSubmissions } from '../lib/contract'
+import { getTask, submitWork } from '../lib/contract'
 import { useToast } from '../context/ToastContext'
+import { formatDeadline, formatGen } from '../lib/utils'
 import Spinner from '../components/Spinner'
 
 export default function SubmitWorkPage() {
@@ -41,11 +42,8 @@ export default function SubmitWorkPage() {
     setLoading(true)
     setSubmitStatus('Submitting transaction...')
     try {
-      const previousIds = await loadSubmissionIdsForTask(taskId).catch(() => [])
       const result = await submitWork(taskId, workUrl.trim(), description.trim())
       if (result.hash) {
-        setSubmitStatus('Syncing on-chain data...')
-        await waitForTaskSubmissions(taskId, previousIds)
         addToast({ type: 'success', message: 'Work submitted successfully!', txHash: result.hash })
         navigate(`/task/${taskId}`)
       }
@@ -81,6 +79,13 @@ export default function SubmitWorkPage() {
           <p className="text-[11px] text-white/40 uppercase tracking-wider mb-1 font-semibold font-sans">Submitting work for</p>
           <h2 className="font-heading font-semibold text-white tracking-wide">{task.title}</h2>
           <p className="text-sm text-white/50 mt-1 line-clamp-2 font-sans">{task.description}</p>
+          <div className="flex flex-wrap items-center gap-4 mt-3 pt-3 border-t border-white/10 text-xs">
+            <span className="font-mono text-[#0ea5e9]">
+              {formatGen(task.escrow_remaining_wei)} GEN bounty
+            </span>
+            <span className="text-white/45">Score {task.payout_threshold}+ to win</span>
+            <span className="text-white/45">Due {formatDeadline(task.deadline)}</span>
+          </div>
         </div>
       )}
 
