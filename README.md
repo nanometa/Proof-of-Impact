@@ -98,13 +98,13 @@ into an intelligent contract:
 ## Current Bradbury Deployment
 
 This README documents the active
-`v4-native-gen-escrow-independent-evidence` deployment on GenLayer Bradbury
+`v4.1-threshold-bound-payout-consensus` deployment on GenLayer Bradbury
 Testnet.
 
 | Contract | Version | Address | Purpose |
 | --- | --- | --- | --- |
 | `TaskManager` | `4.0.0` | [`0xbDbC9FEdBac47329D02fFA1Edffc7179d11e5c79`](https://explorer-bradbury.genlayer.com/address/0xbDbC9FEdBac47329D02fFA1Edffc7179d11e5c79) | payable task creation, native GEN escrow, payout and refund |
-| `ProofOfImpact` | `4.0.0` | [`0xDD253140f2dfe04f8c6B2e5150De72F3327fb73D`](https://explorer-bradbury.genlayer.com/address/0xDD253140f2dfe04f8c6B2e5150De72F3327fb73D) | independent evidence consensus, AI evaluation, settlement messages |
+| `ProofOfImpact` | `4.1.0` | [`0x21B23594a213689413DeEe19687642fb6111BC77`](https://explorer-bradbury.genlayer.com/address/0x21B23594a213689413DeEe19687642fb6111BC77) | threshold-bound AI consensus, evaluation, and settlement messages |
 | `GlobalLeaderboard` | current | [`0xc335b7326D70067373b7c8c88f42803BcDcC1D5C`](https://explorer-bradbury.genlayer.com/address/0xc335b7326D70067373b7c8c88f42803BcDcC1D5C) | cumulative contributor rankings |
 
 Deployment and authorization transactions:
@@ -116,6 +116,9 @@ Deployment and authorization transactions:
 | Deploy `GlobalLeaderboard` | [`0x4d86e46fdedfd082f222baf02159ff5514e438bb1f1e76c167d3018f80851d4f`](https://explorer-bradbury.genlayer.com/tx/0x4d86e46fdedfd082f222baf02159ff5514e438bb1f1e76c167d3018f80851d4f) |
 | Authorize `ProofOfImpact` in `TaskManager` | [`0xe6e226a6f1fac1df9d568acec6da50fe21b1b81743f2c8f72e3523fae264332b`](https://explorer-bradbury.genlayer.com/tx/0xe6e226a6f1fac1df9d568acec6da50fe21b1b81743f2c8f72e3523fae264332b) |
 | Authorize `ProofOfImpact` in `GlobalLeaderboard` | [`0x28354a94af2a25a70835b12c1d14edfd5741f6b52431b3be409ef051674eacc3`](https://explorer-bradbury.genlayer.com/tx/0x28354a94af2a25a70835b12c1d14edfd5741f6b52431b3be409ef051674eacc3) |
+| Deploy `ProofOfImpact v4.1.0` | [`0x7ecafb036c5582b134c0f0facd7758dddd3778033c67a370bbb74088d1231de4`](https://explorer-bradbury.genlayer.com/tx/0x7ecafb036c5582b134c0f0facd7758dddd3778033c67a370bbb74088d1231de4) |
+| Authorize `ProofOfImpact v4.1.0` in `TaskManager` | [`0xfdbf44eef137f5c016f9a1135b9d45cca20fbb1ffa5b46e0f700dd6490dffe08`](https://explorer-bradbury.genlayer.com/tx/0xfdbf44eef137f5c016f9a1135b9d45cca20fbb1ffa5b46e0f700dd6490dffe08) |
+| Authorize `ProofOfImpact v4.1.0` in `GlobalLeaderboard` | [`0x8cb847a2fe0b1541af7284ba112422640fe3340cc329ed80428ad6454db1c025`](https://explorer-bradbury.genlayer.com/tx/0x8cb847a2fe0b1541af7284ba112422640fe3340cc329ed80428ad6454db1c025) |
 
 ---
 
@@ -132,9 +135,10 @@ The v4 escrow was tested directly on Bradbury with a real native GEN deposit.
 | Contract balance after | `1000000000000000 wei` |
 | Escrow state | `funded`, not settled |
 
-Eight direct GenLayer tests also cover zero-deposit rejection, exact accounting,
-authorization, low-score retention, one-time payout, creator lockup, expiry
-grace, refund, self-submission rejection, and deadline enforcement.
+Nine direct GenLayer tests also cover zero-deposit rejection, exact accounting,
+authorization, scores immediately below and at the payout cutoff, one-time
+payout, creator lockup, expiry grace, refund, self-submission rejection, and
+deadline enforcement.
 
 ---
 
@@ -215,12 +219,14 @@ verified_content = gl.eq_principle.strict_eq(fetch_evidence)
 This prevents an inaccessible page, a hallucinated description, or one
 validator's private fetch result from becoming the shared source of truth.
 
-### 3. Comparative AI scoring
+### 3. Threshold-bound comparative AI scoring
 
-The contract then builds a task-aware prompt from `verified_content` and runs a
-second `prompt_comparative` equivalence block. Validators must agree on the
-score band, URL validity, and factual conclusion while allowing small numerical
-variation in subjective scoring.
+The contract passes the task's exact `payout_threshold` into the evaluation
+prompt and runs a custom comparative validator with `run_nondet_unsafe`.
+Validators independently score the same verified evidence. They may differ by
+at most 10 score points, but they must agree exactly on URL validity and on the
+derived `payout_eligible = score >= payout_threshold` decision. This prevents
+scores on opposite sides of the payout cutoff from reaching consensus.
 
 The final JSON includes:
 
@@ -232,7 +238,9 @@ The final JSON includes:
   "strengths": [],
   "improvements": [],
   "criteria_scores": {},
-  "risk_flags": []
+  "risk_flags": [],
+  "payout_threshold": 70,
+  "payout_eligible": true
 }
 ```
 
@@ -268,7 +276,7 @@ Active Bradbury configuration:
 
 ```bash
 VITE_TASK_MANAGER_ADDRESS=0xbDbC9FEdBac47329D02fFA1Edffc7179d11e5c79
-VITE_PROOF_OF_IMPACT_ADDRESS=0xDD253140f2dfe04f8c6B2e5150De72F3327fb73D
+VITE_PROOF_OF_IMPACT_ADDRESS=0x21B23594a213689413DeEe19687642fb6111BC77
 VITE_GLOBAL_LEADERBOARD_ADDRESS=0xc335b7326D70067373b7c8c88f42803BcDcC1D5C
 ```
 
@@ -352,7 +360,7 @@ npx --yes genlayer@latest network info
 Read deployed contract state:
 
 ```bash
-npx --yes genlayer@latest call 0xDD253140f2dfe04f8c6B2e5150De72F3327fb73D get_version
+npx --yes genlayer@latest call 0x21B23594a213689413DeEe19687642fb6111BC77 get_version
 npx --yes genlayer@latest call 0xbDbC9FEdBac47329D02fFA1Edffc7179d11e5c79 get_authorized_submitter
 npx --yes genlayer@latest call 0xc335b7326D70067373b7c8c88f42803BcDcC1D5C get_authorized_writer
 ```

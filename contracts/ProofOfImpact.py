@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import json
 
 
-CONTRACT_VERSION = "4.0.0"
+CONTRACT_VERSION = "4.1.0"
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
 TASK_OPEN = "open"
@@ -73,7 +73,11 @@ def append_json_array(raw: str, value: str) -> str:
     return json.dumps(values)
 
 
-def make_evaluation_fallback(message: str) -> dict:
+def qualifies_for_payout(score: int, payout_threshold: int) -> bool:
+    return score >= payout_threshold
+
+
+def make_evaluation_fallback(message: str, payout_threshold: int) -> dict:
     return {
         "score": 0,
         "grade": "F",
@@ -83,6 +87,8 @@ def make_evaluation_fallback(message: str) -> dict:
         "criteria_scores": {"overall": 0},
         "url_valid": False,
         "risk_flags": ["evaluation_fallback"],
+        "payout_threshold": payout_threshold,
+        "payout_eligible": qualifies_for_payout(0, payout_threshold),
     }
 
 
@@ -103,8 +109,11 @@ def normalize_text_list(value, fallback_a: str, fallback_b: str) -> list:
     return cleaned
 
 
-def parse_evaluation_result(raw) -> dict:
-    fallback = make_evaluation_fallback("Could not parse evaluation result.")
+def parse_evaluation_result(raw, payout_threshold: int) -> dict:
+    fallback = make_evaluation_fallback(
+        "Could not parse evaluation result.",
+        payout_threshold,
+    )
 
     try:
         if isinstance(raw, dict):
@@ -184,6 +193,8 @@ def parse_evaluation_result(raw) -> dict:
         "criteria_scores": cleaned_criteria,
         "url_valid": bool(result.get("url_valid", False)),
         "risk_flags": cleaned_flags,
+        "payout_threshold": payout_threshold,
+        "payout_eligible": qualifies_for_payout(score, payout_threshold),
     }
 
 
@@ -213,6 +224,7 @@ def build_evaluation_prompt(
     task_description: str,
     task_criteria: str,
     reward_points: int,
+    payout_threshold: int,
     work_url: str,
     work_description: str,
     url_content: str,
@@ -223,7 +235,8 @@ def build_evaluation_prompt(
         f"Task Title: {task_title}\n"
         f"Task Description: {task_description}\n"
         f"Evaluation Criteria: {task_criteria}\n"
-        f"Maximum Reward Points: {reward_points}\n\n"
+        f"Maximum Reward Points: {reward_points}\n"
+        f"Exact Payout Threshold: {payout_threshold}/100\n\n"
         f"Submitted Work URL: {work_url}\n"
         f"Worker Description: {work_description}\n\n"
         f"Actual content fetched from the URL:\n{url_content}\n\n"
@@ -235,7 +248,9 @@ def build_evaluation_prompt(
         "- If the fetched content only partially matches the task criteria, score proportionally.\n"
         "- If the fetched content matches the description and satisfies the criteria, reward accordingly.\n"
         "- Do not require repository-specific hardcoded rules. Judge the evidence generally.\n"
-        "- Do not penalize a correct raw evidence file without a clear reason.\n\n"
+        "- Do not penalize a correct raw evidence file without a clear reason.\n"
+        f"- Set payout_eligible to true if and only if score >= {payout_threshold}; "
+        "otherwise set it to false.\n\n"
         "Respond with a JSON object containing exactly:\n"
         '- "score": integer from 0 to 100\n'
         '- "grade": one of "A", "B", "C", "D", "F"\n'
@@ -244,6 +259,7 @@ def build_evaluation_prompt(
         '- "improvements": ["<improvement1>", "<improvement2>"]\n'
         '- "criteria_scores": {"overall": <0-100>}\n'
         '- "url_valid": true if URL was accessible and relevant, false otherwise\n'
+        '- "payout_eligible": boolean derived from the exact payout threshold\n'
         '- "risk_flags": [] or short risk strings\n\n'
         "Return ONLY the JSON object, no additional text."
     )
@@ -254,6 +270,7 @@ def smart_evaluate_submission(
     task_description: str,
     task_criteria: str,
     reward_points: int,
+    payout_threshold: int,
     work_url: str,
     work_description: str,
 ) -> dict:
@@ -270,39 +287,61 @@ def smart_evaluate_submission(
 
     verified_content = gl.eq_principle.strict_eq(fetch_evidence)
 
-    def evaluate_verified_evidence() -> str:
+    def evaluate_verified_evidence() -> dict:
         try:
             prompt = build_evaluation_prompt(
                 task_title,
                 task_description,
                 task_criteria,
                 reward_points,
+                payout_threshold,
                 work_url,
                 work_description,
                 verified_content,
             )
             raw_result = gl.nondet.exec_prompt(prompt, response_format="json")
-            result = parse_evaluation_result(raw_result)
+            result = parse_evaluation_result(raw_result, payout_threshold)
         except Exception:
-            result = make_evaluation_fallback("Evaluation failed unexpectedly.")
+            result = make_evaluation_fallback(
+                "Evaluation failed unexpectedly.",
+                payout_threshold,
+            )
 
         if str(verified_content).startswith("URL_FETCH_FAILED:"):
             result["score"] = min(int(result.get("score", 0)), 30)
             result["grade"] = grade_for_score(int(result["score"]))
             result["url_valid"] = False
+            result["payout_eligible"] = qualifies_for_payout(
+                int(result["score"]),
+                payout_threshold,
+            )
             add_risk_flag(result, "evidence_fetch_failed")
-        return json.dumps(result, sort_keys=True)
+        return result
 
-    result_json = gl.eq_principle.prompt_comparative(
+    def validate_evaluation(leaders_res: gl.vm.Result) -> bool:
+        if not isinstance(leaders_res, gl.vm.Return):
+            return False
+
+        leader_result = parse_evaluation_result(
+            leaders_res.calldata,
+            payout_threshold,
+        )
+        validator_result = evaluate_verified_evidence()
+
+        if leader_result["payout_eligible"] != validator_result["payout_eligible"]:
+            return False
+        if leader_result["url_valid"] != validator_result["url_valid"]:
+            return False
+        if abs(int(leader_result["score"]) - int(validator_result["score"])) > 10:
+            return False
+        return True
+
+    result = gl.vm.run_nondet_unsafe(
         evaluate_verified_evidence,
-        principle=(
-            "The score must be within 10 points and the pass/fail band must match. "
-            "url_valid must match exactly. Feedback and factual conclusions must be "
-            "semantically consistent with the independently verified evidence."
-        ),
+        validate_evaluation,
     )
 
-    return parse_evaluation_result(result_json)
+    return parse_evaluation_result(result, payout_threshold)
 
 
 class ProofOfImpact(gl.Contract):
@@ -797,6 +836,7 @@ class ProofOfImpact(gl.Contract):
             task_description,
             task_criteria,
             task_reward,
+            payout_threshold,
             work_url,
             work_description,
         )
@@ -834,8 +874,8 @@ class ProofOfImpact(gl.Contract):
         sub_data["url_valid"] = result["url_valid"]
         sub_data["risk_flags"] = result["risk_flags"]
         sub_data["points_earned"] = points_earned
-        sub_data["payout_threshold"] = payout_threshold
-        sub_data["payout_eligible"] = score >= payout_threshold
+        sub_data["payout_threshold"] = int(result["payout_threshold"])
+        sub_data["payout_eligible"] = bool(result["payout_eligible"])
         sub_data["evaluated_by"] = evaluator
         self._store_submission(sub_id, sub_data)
 

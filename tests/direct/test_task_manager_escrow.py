@@ -168,6 +168,60 @@ def test_low_score_keeps_escrow_funded(
     assert int(manager.get_task_evaluated_count(task_id)) == 1
 
 
+def test_payout_threshold_boundary_scores_on_opposite_sides(
+    direct_vm,
+    direct_deploy,
+    direct_alice,
+    direct_bob,
+    direct_charlie,
+    direct_owner,
+):
+    manager = deploy_manager(direct_vm, direct_deploy, direct_alice)
+    task_id = create_funded_task(direct_vm, manager, direct_alice)
+
+    direct_vm.sender = direct_alice
+    manager.set_authorized_submitter(address_value(direct_bob))
+    direct_vm.sender = direct_bob
+    manager.record_submission(
+        task_id,
+        "sub-below",
+        address_text(direct_charlie),
+        START_TIMESTAMP,
+    )
+    manager.record_submission(
+        task_id,
+        "sub-at-cutoff",
+        address_text(direct_owner),
+        START_TIMESTAMP + 1,
+    )
+
+    manager.record_evaluation(
+        task_id,
+        "sub-below",
+        address_text(direct_charlie),
+        69,
+        69,
+    )
+    below_escrow = escrow_json(manager, task_id)
+    assert below_escrow["status"] == "funded"
+    assert below_escrow["settled"] is False
+    assert below_escrow["remaining_wei"] == str(BOUNTY)
+
+    manager.record_evaluation(
+        task_id,
+        "sub-at-cutoff",
+        address_text(direct_owner),
+        70,
+        70,
+    )
+    cutoff_escrow = escrow_json(manager, task_id)
+    assert cutoff_escrow["status"] == "payout_scheduled"
+    assert cutoff_escrow["settled"] is True
+    assert cutoff_escrow["winner"] == address_text(direct_owner)
+    assert cutoff_escrow["winning_submission"] == "sub-at-cutoff"
+    assert cutoff_escrow["remaining_wei"] == "0"
+
+
 def test_first_qualifying_score_pays_once(
     direct_vm,
     direct_deploy,
