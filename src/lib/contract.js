@@ -78,6 +78,33 @@ function getEthereumProvider() {
   }
 }
 
+async function ensureBradburyChain() {
+  const ethereum = getEthereumProvider()
+  if (!ethereum) return
+
+  const chainId = '0x107d'
+  try {
+    await ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId }],
+    })
+  } catch (error) {
+    if (error?.code !== 4902) throw error
+    await ethereum.request({
+      method: 'wallet_addEthereumChain',
+      params: [
+        {
+          chainId,
+          chainName: 'GenLayer Bradbury',
+          nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
+          rpcUrls: ['https://rpc-bradbury.genlayer.com'],
+          blockExplorerUrls: ['https://explorer-bradbury.genlayer.com'],
+        },
+      ],
+    })
+  }
+}
+
 function getSigningAccount() {
   if (signingAccount) return signingAccount
 
@@ -180,6 +207,7 @@ export async function createTask(
   payoutChainId = 11155111,
 ) {
   ensureConnected()
+  await ensureBradburyChain()
   const client = getSigningClient()
   const taskAddress = TASK_MANAGER_CONTRACT
 
@@ -209,8 +237,55 @@ export async function createTask(
   }
 }
 
+export async function createExternalEthTask(
+  title,
+  description,
+  criteria,
+  rewardPoints,
+  payoutThreshold,
+  durationSeconds,
+  taskTemplate,
+  payoutChainId,
+  externalEscrowContract,
+  externalEscrowId,
+  externalDepositTx,
+  externalAmountWei,
+) {
+  ensureConnected()
+  await ensureBradburyChain()
+  const client = getSigningClient()
+
+  try {
+    clearReadCache()
+    const hash = await client.writeContract({
+      address: TASK_MANAGER_CONTRACT,
+      functionName: 'create_task_with_external_eth_escrow',
+      args: [
+        title,
+        description,
+        criteria,
+        Number(rewardPoints),
+        Number(payoutThreshold),
+        Number(durationSeconds),
+        taskTemplate,
+        Number(payoutChainId),
+        externalEscrowContract,
+        externalEscrowId,
+        externalDepositTx,
+        BigInt(externalAmountWei),
+      ],
+    })
+    const result = await pollTx(hash, { requireFinalized: true })
+    clearReadCache()
+    return result
+  } catch (e) {
+    throw new Error(extractError(e))
+  }
+}
+
 export async function refundExpiredTask(taskId) {
   ensureConnected()
+  await ensureBradburyChain()
   const client = getSigningClient()
 
   try {
@@ -230,6 +305,7 @@ export async function refundExpiredTask(taskId) {
 
 export async function submitWork(taskId, workUrl, description) {
   ensureConnected()
+  await ensureBradburyChain()
   const client = getSigningClient()
 
   try {
@@ -249,6 +325,7 @@ export async function submitWork(taskId, workUrl, description) {
 
 export async function evaluateSubmission(subId) {
   ensureConnected()
+  await ensureBradburyChain()
   const client = getSigningClient()
 
   try {
@@ -269,6 +346,7 @@ export async function evaluateSubmission(subId) {
 
 export async function retryTaskSettlement(subId) {
   ensureConnected()
+  await ensureBradburyChain()
   const client = getSigningClient()
 
   try {
@@ -277,6 +355,46 @@ export async function retryTaskSettlement(subId) {
       address: CONTRACT_ADDRESS,
       functionName: 'retry_task_settlement',
       args: [subId],
+    })
+    const result = await pollTx(hash, { requireFinalized: true })
+    clearReadCache()
+    return result
+  } catch (e) {
+    throw new Error(extractError(e))
+  }
+}
+
+export async function recordExternalPayout(taskId, settlementTx) {
+  ensureConnected()
+  await ensureBradburyChain()
+  const client = getSigningClient()
+
+  try {
+    clearReadCache()
+    const hash = await client.writeContract({
+      address: TASK_MANAGER_CONTRACT,
+      functionName: 'record_external_payout',
+      args: [taskId, settlementTx],
+    })
+    const result = await pollTx(hash, { requireFinalized: true })
+    clearReadCache()
+    return result
+  } catch (e) {
+    throw new Error(extractError(e))
+  }
+}
+
+export async function recordExternalRefund(taskId, settlementTx) {
+  ensureConnected()
+  await ensureBradburyChain()
+  const client = getSigningClient()
+
+  try {
+    clearReadCache()
+    const hash = await client.writeContract({
+      address: TASK_MANAGER_CONTRACT,
+      functionName: 'record_external_refund',
+      args: [taskId, settlementTx],
     })
     const result = await pollTx(hash, { requireFinalized: true })
     clearReadCache()
@@ -626,11 +744,11 @@ function extractError(error) {
   const message = error?.message || String(error)
 
   if (message.includes('does not have enough funds')) {
-    return 'Your wallet needs enough GEN for the bounty and transaction fees.'
+    return 'Your wallet needs enough funds for the bounty and transaction fees.'
   }
 
   if (/cannot convert|invalid decimal|fractional component exceeds/i.test(message)) {
-    return 'Enter a valid GEN bounty with no more than 18 decimal places.'
+    return 'Enter a valid bounty with no more than 18 decimal places.'
   }
 
   const match = message.match(/UserError:\s*(.*)/)

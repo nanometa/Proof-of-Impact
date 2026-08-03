@@ -3,8 +3,14 @@ import json
 
 GEN = 10**18
 BOUNTY = GEN // 10
+ETH_ESCROW = GEN // 20
 START_TIMESTAMP = 1767225600
 ONE_HOUR = 3600
+L2_ESCROW_CONTRACT = "0x1111111111111111111111111111111111111111"
+L2_ESCROW_ID = "0x" + "22" * 32
+L2_DEPOSIT_TX = "0x" + "33" * 32
+L2_RELEASE_TX = "0x" + "44" * 32
+L2_REFUND_TX = "0x" + "55" * 32
 
 
 def address_value(raw):
@@ -43,8 +49,8 @@ def create_funded_task(direct_vm, manager, creator, bounty=BOUNTY):
 def create_profiled_task(direct_vm, manager, creator, template="research", chain_id=84532):
     direct_vm.sender = creator
     direct_vm.deal(creator, 10 * GEN)
-    direct_vm.value = BOUNTY
-    task_id = manager.create_task_with_profile(
+    direct_vm.value = 0
+    task_id = manager.create_task_with_external_eth_escrow(
         "Profiled task",
         "Deliver evidence using the selected category workflow.",
         "The fetched artifact must satisfy the selected template requirements.",
@@ -53,6 +59,10 @@ def create_profiled_task(direct_vm, manager, creator, template="research", chain
         ONE_HOUR,
         template,
         chain_id,
+        L2_ESCROW_CONTRACT,
+        L2_ESCROW_ID,
+        L2_DEPOSIT_TX,
+        ETH_ESCROW,
     )
     direct_vm.value = 0
     return task_id
@@ -131,8 +141,17 @@ def test_profiled_task_records_template_and_eth_testnet_rail(
     assert task["payout_network_name"] == "Base Sepolia"
     assert task["payout_token_symbol"] == "ETH"
     assert task["payout_rail_type"] == "native_testnet_eth"
+    assert task["escrow_kind"] == "external_evm_escrow"
+    assert task["escrow_total_wei"] == str(ETH_ESCROW)
+    assert task["escrow_remaining_wei"] == str(ETH_ESCROW)
+    assert task["external_escrow_contract"] == L2_ESCROW_CONTRACT
+    assert task["external_escrow_id"] == L2_ESCROW_ID
+    assert task["external_deposit_tx"] == L2_DEPOSIT_TX
     assert any(row["chain_id"] == 421614 for row in networks)
     assert any(row["key"] == "community" for row in templates)
+    stats = json.loads(manager.get_platform_stats())
+    assert stats["total_locked_wei"] == "0"
+    assert stats["total_external_locked_wei"] == str(ETH_ESCROW)
 
 
 def test_unsupported_template_or_network_is_rejected(
@@ -170,6 +189,46 @@ def test_unsupported_template_or_network_is_rejected(
         )
 
     direct_vm.value = 0
+
+
+def test_eth_testnet_profile_requires_external_escrow(
+    direct_vm,
+    direct_deploy,
+    direct_alice,
+):
+    manager = deploy_manager(direct_vm, direct_deploy, direct_alice)
+    direct_vm.sender = direct_alice
+    direct_vm.deal(direct_alice, 10 * GEN)
+    direct_vm.value = BOUNTY
+
+    with direct_vm.expect_revert("GEN value must be zero for external ETH escrow"):
+        manager.create_task_with_profile(
+            "Wrong ETH funding",
+            "ETH testnet tasks must use the external EVM escrow contract.",
+            "The GenLayer task should reference a real L2 deposit.",
+            100,
+            70,
+            ONE_HOUR,
+            "code",
+            84532,
+        )
+
+    direct_vm.value = 0
+    with direct_vm.expect_revert("external_escrow_contract cannot be empty"):
+        manager.create_task_with_external_eth_escrow(
+            "Missing L2 escrow",
+            "ETH testnet tasks must reference a real escrow deposit.",
+            "The contract rejects missing escrow evidence.",
+            100,
+            70,
+            ONE_HOUR,
+            "code",
+            84532,
+            "",
+            L2_ESCROW_ID,
+            L2_DEPOSIT_TX,
+            ETH_ESCROW,
+        )
 
 
 def test_creator_cannot_withdraw_bounty_early(
@@ -360,6 +419,83 @@ def test_first_qualifying_score_pays_once(
     assert escrow["payout_wei"] == str(BOUNTY)
     assert stats["total_paid_wei"] == str(BOUNTY)
     assert int(manager.get_task_evaluated_count(task_id)) == 2
+
+
+def test_external_eth_payout_waits_for_l2_release_receipt(
+    direct_vm,
+    direct_deploy,
+    direct_alice,
+    direct_bob,
+    direct_charlie,
+):
+    manager = deploy_manager(direct_vm, direct_deploy, direct_alice)
+    task_id = create_profiled_task(direct_vm, manager, direct_alice)
+
+    direct_vm.sender = direct_alice
+    manager.set_authorized_submitter(address_value(direct_bob))
+    direct_vm.sender = direct_bob
+    manager.record_submission(
+        task_id,
+        "sub-0",
+        address_text(direct_charlie),
+        START_TIMESTAMP,
+    )
+    manager.record_evaluation(
+        task_id,
+        "sub-0",
+        address_text(direct_charlie),
+        88,
+        88,
+    )
+
+    escrow = escrow_json(manager, task_id)
+    stats = json.loads(manager.get_platform_stats())
+    assert escrow["status"] == "external_payout_ready"
+    assert escrow["settled"] is True
+    assert escrow["winner"] == address_text(direct_charlie)
+    assert escrow["remaining_wei"] == str(ETH_ESCROW)
+    assert stats["total_external_locked_wei"] == str(ETH_ESCROW)
+
+    direct_vm.sender = direct_charlie
+    manager.record_external_payout(task_id, L2_RELEASE_TX)
+
+    task = task_json(manager, task_id)
+    escrow = escrow_json(manager, task_id)
+    stats = json.loads(manager.get_platform_stats())
+    assert task["external_settlement_tx"] == L2_RELEASE_TX
+    assert escrow["status"] == "external_payout_released"
+    assert escrow["remaining_wei"] == "0"
+    assert stats["total_external_locked_wei"] == "0"
+    assert stats["total_external_paid_wei"] == str(ETH_ESCROW)
+
+
+def test_external_eth_refund_waits_for_l2_refund_receipt(
+    direct_vm,
+    direct_deploy,
+    direct_alice,
+):
+    manager = deploy_manager(direct_vm, direct_deploy, direct_alice)
+    task_id = create_profiled_task(direct_vm, manager, direct_alice)
+
+    direct_vm.warp("2026-01-02T01:01:00Z")
+    manager.refund_expired_task(task_id)
+
+    escrow = escrow_json(manager, task_id)
+    assert escrow["status"] == "external_refund_ready"
+    assert escrow["remaining_wei"] == str(ETH_ESCROW)
+
+    direct_vm.sender = direct_alice
+    manager.record_external_refund(task_id, L2_REFUND_TX)
+
+    task = task_json(manager, task_id)
+    escrow = escrow_json(manager, task_id)
+    stats = json.loads(manager.get_platform_stats())
+    assert task["status"] == "expired"
+    assert task["external_settlement_tx"] == L2_REFUND_TX
+    assert escrow["status"] == "external_refunded"
+    assert escrow["remaining_wei"] == "0"
+    assert stats["total_external_locked_wei"] == "0"
+    assert stats["total_external_refunded_wei"] == str(ETH_ESCROW)
 
 
 def test_expiry_refund_waits_for_finalization_grace(

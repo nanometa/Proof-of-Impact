@@ -5,8 +5,10 @@ import {
   getTaskEscrow,
   getTaskStats,
   loadSubmissionsForTask,
+  recordExternalRefund,
   refundExpiredTask,
 } from '../lib/contract'
+import { isExternalEthTask, refundL2TaskEscrow } from '../lib/evmEscrow'
 import { formatDeadline, formatGen, truncateAddress } from '../lib/utils'
 import { useWallet } from '../context/WalletContext'
 import { useToast } from '../context/ToastContext'
@@ -54,13 +56,33 @@ export default function TaskPage() {
 
     setRefunding(true)
     try {
-      const result = await refundExpiredTask(taskId)
+      let nextTask = task
+      let nextEscrow = escrow
+      let nextStats = stats
+      let result = null
+
+      if (task.escrow_status !== 'external_refund_ready') {
+        result = await refundExpiredTask(taskId)
+        ;[nextTask, nextEscrow, nextStats] = await Promise.all([
+          getTask(taskId),
+          getTaskEscrow(taskId),
+          getTaskStats(taskId),
+        ])
+      }
+
+      if (isExternalEthTask(nextTask)) {
+        const l2Hash = await refundL2TaskEscrow(nextTask)
+        result = await recordExternalRefund(taskId, l2Hash)
+      }
+
       addToast({
         type: 'success',
-        message: 'Expired bounty returned to the task creator',
-        txHash: result.hash,
+        message: isExternalEthTask(nextTask)
+          ? 'Expired ETH bounty refunded from L2 escrow'
+          : 'Expired bounty returned to the task creator',
+        txHash: result?.hash,
       })
-      const [nextTask, nextEscrow, nextStats] = await Promise.all([
+      ;[nextTask, nextEscrow, nextStats] = await Promise.all([
         getTask(taskId),
         getTaskEscrow(taskId),
         getTaskStats(taskId),
@@ -103,13 +125,20 @@ export default function TaskPage() {
   const visibleStatus =
     task.status === 'open' && deadlinePassed ? 'expired' : task.status
   const remainingWei = task.escrow_remaining_wei ?? escrow?.remaining_wei ?? '0'
+  const payoutToken = task.payout_token_symbol || 'GEN'
+  const externalTask = isExternalEthTask(task)
   const pendingCount = Number(stats?.pending_submissions || 0)
   const canRefund =
-    task.status === 'open' &&
-    refundAvailableAt > 0 &&
-    now > refundAvailableAt &&
-    pendingCount === 0 &&
-    BigInt(remainingWei || 0) > 0n
+    BigInt(remainingWei || 0) > 0n &&
+    (
+      (
+        task.status === 'open' &&
+        refundAvailableAt > 0 &&
+        now > refundAvailableAt &&
+        pendingCount === 0
+      ) ||
+      task.escrow_status === 'external_refund_ready'
+    )
   const canSubmit = task.status === 'open' && !deadlinePassed
 
   return (
@@ -135,7 +164,7 @@ export default function TaskPage() {
               {visibleStatus}
             </span>
             <span className="px-2.5 py-1 rounded-full bg-[#0ea5e9]/10 border border-[#0ea5e9]/40 text-[#0ea5e9] text-[11px] font-bold">
-              {formatGen(task.escrow_total_wei ?? escrow?.total_wei)} GEN
+              {formatGen(task.escrow_total_wei ?? escrow?.total_wei)} {payoutToken}
             </span>
             <span className="px-2.5 py-1 rounded-full bg-[#8B5CF6]/10 border border-[#8B5CF6]/50 text-[#8B5CF6] text-[11px] font-bold">
               {task.reward_points} pts
@@ -164,8 +193,15 @@ export default function TaskPage() {
               {task.payout_network_name || 'GenLayer Bradbury'} · {task.payout_token_symbol || 'GEN'}
             </p>
             <p className="text-xs text-white/55 mt-2 leading-relaxed">
-              Chain ID {task.payout_chain_id || 4221}. GenLayer records the canonical AI verdict and escrow state; this rail identifies the selected native testnet payout network.
+              Chain ID {task.payout_chain_id || 4221}. {externalTask
+                ? 'ETH is held by the L2 escrow contract; GenLayer records the verdict that unlocks release/refund.'
+                : 'GenLayer records the canonical AI verdict and native GEN escrow state.'}
             </p>
+            {externalTask && (
+              <p className="mt-2 break-all font-mono text-[11px] text-white/35">
+                Escrow {task.external_escrow_contract} · {task.external_escrow_id}
+              </p>
+            )}
           </div>
         </div>
 
@@ -173,7 +209,7 @@ export default function TaskPage() {
           <div>
             <p className="text-[11px] text-white/35 uppercase mb-1">Escrow</p>
             <p className="font-mono text-sm text-white">
-              {formatGen(remainingWei)} GEN remaining
+              {formatGen(remainingWei)} {payoutToken} remaining
             </p>
           </div>
           <div>
@@ -203,7 +239,7 @@ export default function TaskPage() {
             className="mb-5 px-4 py-2.5 border border-[#0ea5e9]/40 text-[#0ea5e9] hover:bg-[#0ea5e9]/10 rounded-lg text-sm font-semibold disabled:opacity-40 inline-flex items-center gap-2"
           >
             {refunding && <Spinner size="sm" />}
-            Return expired bounty
+            {externalTask ? 'Refund ETH from L2 escrow' : 'Return expired bounty'}
           </button>
         )}
 

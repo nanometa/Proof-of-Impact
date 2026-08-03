@@ -4,14 +4,14 @@
 
 # Proof of Impact
 
-**Fund work with native GEN, submit verifiable evidence, and let decentralized AI validators score category-specific work against an explicit payout threshold.**
+**Fund work with real native ETH on L2 testnets, submit verifiable evidence, and let decentralized AI validators score category-specific work against an explicit payout threshold.**
 
 [**Live Demo**](https://proof-of-impact-pi.vercel.app/) - [**Bradbury Explorer**](https://explorer-bradbury.genlayer.com) - [**GenLayer**](https://genlayer.com)
 
 [![Live](https://img.shields.io/badge/Live-proof--of--impact--pi.vercel.app-10b981?style=flat-square&logo=vercel)](https://proof-of-impact-pi.vercel.app/)
 [![Network](https://img.shields.io/badge/Network-Bradbury%20Testnet-8b5cf6?style=flat-square)](https://explorer-bradbury.genlayer.com)
 [![Chain ID](https://img.shields.io/badge/Chain%20ID-4221-3b82f6?style=flat-square)](https://docs.genlayer.com/developers/networks)
-[![Version](https://img.shields.io/badge/ProofOfImpact-v4.2.0-22c55e?style=flat-square)](#current-bradbury-deployment)
+[![Version](https://img.shields.io/badge/ProofOfImpact-v4.3.0-22c55e?style=flat-square)](#current-bradbury-deployment)
 [![License](https://img.shields.io/badge/License-MIT-64748b?style=flat-square)](#license)
 
 </div>
@@ -42,7 +42,7 @@
 
 **Proof of Impact** is a decentralized work marketplace built on the
 **GenLayer Bradbury Testnet**. A task creator publishes a mission with custom
-criteria and locks a native GEN bounty in the `TaskManager` contract.
+criteria and locks a native ETH bounty in a dedicated L2 escrow contract.
 Contributors submit evidence through a URL, and GenLayer validators use
 AI-assisted consensus to score the submission from `0` to `100`.
 
@@ -54,8 +54,8 @@ The result is written on-chain with:
 - criteria-level scoring,
 - risk flags,
 - contributor points pushed into a global leaderboard,
-- the task's selected review template and ETH testnet rail,
-- and a one-time GEN escrow settlement when the winning threshold is reached.
+- the task's selected review template and ETH testnet escrow,
+- and a one-time L2 ETH settlement when the winning threshold is reached.
 
 The project demonstrates a practical GenLayer pattern: smart contracts that can
 reason over real-world evidence without depending on a centralized reviewer or a
@@ -74,7 +74,7 @@ into an intelligent contract:
 | Reviewers are slow | AI validators evaluate directly from the contract |
 | Subjective scoring is opaque | score, feedback, and criteria scores are stored on-chain |
 | Weak evidence can slip through | AI validators evaluate the fetched evidence against the task criteria |
-| Workers have no payment guarantee | native GEN leaves the creator wallet and remains locked in contract escrow |
+| Workers have no payment guarantee | native ETH leaves the creator wallet and remains locked in an L2 escrow |
 | Leaderboards are off-chain | cumulative impact points are stored in `GlobalLeaderboard` |
 | Historical submissions are expensive to scrape | rankings are updated directly by contract writes |
 
@@ -82,12 +82,12 @@ into an intelligent contract:
 
 ## Key Features
 
-- **Native GEN Escrow** - every task requires a payable GEN deposit held by `TaskManager`.
-- **Guaranteed Settlement** - the first qualifying submission receives the full bounty; creators cannot withdraw it early.
+- **Real L2 ETH Escrow** - funded tasks lock native ETH in `L2TaskEscrow` on the selected testnet before the GenLayer task is created.
+- **Guaranteed Settlement** - the first qualifying submission can release the full bounty; creators cannot withdraw it early.
 - **Expiry Protection** - a bounty can be refunded only after the deadline and a 24-hour finalization window.
 - **Template-Based Task Marketplace** - create tasks with custom criteria, reward points, payout threshold, deadline, and a specialized review profile.
 - **Specialized Review Templates** - code, research, design, community, content, and data tasks each carry their own evidence requirements and risk flags.
-- **ETH Testnet Rail Metadata** - creators can tag tasks for Ethereum Sepolia, Base Sepolia, OP Sepolia, or Arbitrum Sepolia native ETH payout readiness.
+- **ETH Testnet Settlement** - creators can fund tasks on Ethereum Sepolia, Base Sepolia, OP Sepolia, or Arbitrum Sepolia with real native ETH escrow.
 - **AI-Powered Evaluation** - validators score submissions using task-specific evidence and criteria.
 - **Independent Evidence Consensus** - validators independently re-fetch the submitted URL before AI scoring can reach consensus.
 - **On-Chain Leaderboard** - contributor points are written to a dedicated leaderboard contract.
@@ -101,30 +101,41 @@ into an intelligent contract:
 ## Current Bradbury Deployment
 
 This README documents the active
-`v4.2-template-and-network-rails` source branch on GenLayer Bradbury
+`v4.3-l2-eth-escrow` source branch on GenLayer Bradbury
 Testnet.
 
 | Contract | Version | Address | Purpose |
 | --- | --- | --- | --- |
-| `TaskManager` | `4.2.0` | [`0xFB837f3aC53AEdf9951580D04eFb1D2aacd46959`](https://explorer-bradbury.genlayer.com/address/0xFB837f3aC53AEdf9951580D04eFb1D2aacd46959) | payable task creation, native GEN escrow, templates, ETH testnet rail metadata, payout and refund |
-| `ProofOfImpact` | `4.2.0` | [`0xCCf03Aba1011CE2393eA8B762208e9bdd82123Bf`](https://explorer-bradbury.genlayer.com/address/0xCCf03Aba1011CE2393eA8B762208e9bdd82123Bf) | template-aware, threshold-bound AI consensus, evaluation, and settlement messages |
+| `TaskManager` | `4.3.0` | [`0xF4Fa50664E9c61e3a910b796aA702BfA96C8a50D`](https://explorer-bradbury.genlayer.com/address/0xF4Fa50664E9c61e3a910b796aA702BfA96C8a50D) | task creation, templates, external ETH escrow receipts, payout/refund readiness, and accounting |
+| `ProofOfImpact` | `4.3.0` | [`0xE872ab6D367669af00CCCd9295CeaA9FcCD2BFCe`](https://explorer-bradbury.genlayer.com/address/0xE872ab6D367669af00CCCd9295CeaA9FcCD2BFCe) | template-aware, threshold-bound AI consensus, evaluation, and settlement messages |
 | `GlobalLeaderboard` | current | [`0x552FA16bD9F9b9Bd2F6fDa577657033F01d505fB`](https://explorer-bradbury.genlayer.com/address/0x552FA16bD9F9b9Bd2F6fDa577657033F01d505fB) | cumulative contributor rankings |
 
 Deployment and authorization transactions:
 
 | Action | Tx |
 | --- | --- |
-| Deploy `TaskManager v4.2.0` | [`0x260ec92850b2eec3374da50c403825df03e40f781cfd0975442bd14934f4f9cb`](https://explorer-bradbury.genlayer.com/tx/0x260ec92850b2eec3374da50c403825df03e40f781cfd0975442bd14934f4f9cb) |
-| Deploy `ProofOfImpact v4.2.0` | [`0x199dfe1789f32e1c00c3aed5ade45b38916b09646c92ff044a93f8195fc629ca`](https://explorer-bradbury.genlayer.com/tx/0x199dfe1789f32e1c00c3aed5ade45b38916b09646c92ff044a93f8195fc629ca) |
+| Deploy `TaskManager v4.3.0` | [`0x2e4cf0b698a002cf500f327943326f4fcc6a74bff7f45e0e8c2a8f16d503707c`](https://explorer-bradbury.genlayer.com/tx/0x2e4cf0b698a002cf500f327943326f4fcc6a74bff7f45e0e8c2a8f16d503707c) |
+| Deploy `ProofOfImpact v4.3.0` | [`0x2a6d812afb118b7c4ed5adc37bdee06bcdafe9ea55da68144ee28d0f21c0319a`](https://explorer-bradbury.genlayer.com/tx/0x2a6d812afb118b7c4ed5adc37bdee06bcdafe9ea55da68144ee28d0f21c0319a) |
 | Deploy `GlobalLeaderboard` | [`0x25caf03e928242ed11e3382002e6d5d72c32d4f5880f804b5f0fdb0f437fe593`](https://explorer-bradbury.genlayer.com/tx/0x25caf03e928242ed11e3382002e6d5d72c32d4f5880f804b5f0fdb0f437fe593) |
-| Authorize `ProofOfImpact v4.2.0` in `TaskManager` | [`0x87371878c429f7900357d9c7789c016da1e51740aee7e3e50f999e57f92eb694`](https://explorer-bradbury.genlayer.com/tx/0x87371878c429f7900357d9c7789c016da1e51740aee7e3e50f999e57f92eb694) |
-| Authorize `ProofOfImpact v4.2.0` in `GlobalLeaderboard` | [`0x3ca16e6590a3ff1c9222ce97c089be76ac0736f650bede13f52c723787d0d2fe`](https://explorer-bradbury.genlayer.com/tx/0x3ca16e6590a3ff1c9222ce97c089be76ac0736f650bede13f52c723787d0d2fe) |
+| Authorize `ProofOfImpact v4.3.0` in `TaskManager` | [`0xfa7f288aea167e319608c40ba6ac91c62595e3da12733787eab15974020ed4c2`](https://explorer-bradbury.genlayer.com/tx/0xfa7f288aea167e319608c40ba6ac91c62595e3da12733787eab15974020ed4c2) |
+| Authorize `ProofOfImpact v4.3.0` in `GlobalLeaderboard` | [`0x0a6d54be1b2ec85edddb9b7211e98e4ca1adf2539074d847978f2ee4155153ab`](https://explorer-bradbury.genlayer.com/tx/0x0a6d54be1b2ec85edddb9b7211e98e4ca1adf2539074d847978f2ee4155153ab) |
+
+L2 native ETH escrow deployments:
+
+| Network | Chain ID | Escrow | Deploy Tx |
+| --- | ---: | --- | --- |
+| Ethereum Sepolia | `11155111` | `0xc49fD9D21Deb2f5cbc377Aa21980E3856D4A6931` | `0xec974fe6af6c6f8ee5ad1aca3e32acdab351d2fe6e5ee18e4ad7e7be0ccb69af` |
+| Base Sepolia | `84532` | `0xc49fD9D21Deb2f5cbc377Aa21980E3856D4A6931` | `0xd863785a07576a8a75ee74019f56b8eef3bbc99c64f7efd127d02255af646a9f` |
+| OP Sepolia | `11155420` | `0xc49fD9D21Deb2f5cbc377Aa21980E3856D4A6931` | `0xc3b70d3b59bbb163f3acd1c59416b306656fa89208ff9f8136cbc267c6f91e07` |
+| Arbitrum Sepolia | `421614` | `0xc49fD9D21Deb2f5cbc377Aa21980E3856D4A6931` | `0x8d7186c50c7dfa272c38096ae5ac93aca8a8511ed0a98c6e7674c8a153a269e0` |
 
 ---
 
 ## Verified On-Chain Tests
 
-The v4 escrow was tested directly on Bradbury with a real native GEN deposit.
+The v4.3 escrow path is tested with both GenLayer direct-mode tests and Hardhat
+EVM tests for the L2 escrow. The older Bradbury native GEN smoke test is kept
+below as a historical compatibility proof.
 
 | Field | Value |
 | --- | --- |
@@ -135,12 +146,17 @@ The v4 escrow was tested directly on Bradbury with a real native GEN deposit.
 | Contract balance after | `1000000000000000 wei` |
 | Escrow state | `funded`, not settled |
 
-Eleven direct GenLayer tests cover zero-deposit rejection, exact accounting,
+Fourteen direct GenLayer tests cover zero-deposit rejection, exact accounting,
 authorization, scores immediately below and at the payout cutoff, one-time
 payout, creator lockup, expiry grace, refund, self-submission rejection, and
-deadline enforcement. The new tests also cover template metadata, ETH testnet
-rail metadata, supported network/template views, and rejection of unsupported
-profiles.
+deadline enforcement. The new tests also cover templates, real external ETH
+escrow registration, required escrow receipts, release receipt accounting, and
+refund receipt accounting.
+
+Five Hardhat tests cover the `L2TaskEscrow` fund lifecycle: ETH locking, empty
+and duplicate escrow rejection, authorized settler enforcement, threshold-bound
+release, failed payout retryability, creator refund, and double-settlement
+protection.
 
 ---
 
@@ -155,11 +171,15 @@ profiles.
         v
   React + Vite frontend
         |
-        | create_task(value = native GEN)
+        | create L2 escrow with native ETH
+        v
+  L2TaskEscrow on selected ETH testnet
+        |
+        | escrow id + deposit tx
         v
   TaskManager escrow + task profile
         |
-        | task data, template requirements, selected ETH testnet rail
+        | task data, template requirements, selected ETH escrow
         v
   ProofOfImpact
         |
@@ -171,18 +191,19 @@ profiles.
         v                         v
   TaskManager settlement     GlobalLeaderboard
         |
-        | finalized native transfer
+        | external_payout_ready / external_refund_ready
         v
-  Winning contributor
+  L2TaskEscrow release/refund
 ```
 
 ### Contract responsibilities
 
 | Contract | Responsibilities |
 | --- | --- |
-| `TaskManager.py` | receives native GEN, locks task bounties, tracks lifecycle, stores task templates and ETH testnet rail metadata, pays one winner, and refunds expired tasks |
+| `TaskManager.py` | tracks task lifecycle, templates, external ETH escrow references, payout/refund readiness, and GenLayer-side accounting |
 | `ProofOfImpact.py` | validates submissions, independently fetches evidence, applies the selected review template, stores evaluation JSON, and emits finalized settlement writes |
 | `global_leaderboard.py` | records cumulative contributor scores and returns ranked entries |
+| `L2TaskEscrow.sol` | locks native ETH on supported testnets and performs atomic release/refund without clearing state on failed transfers |
 
 This separation keeps each contract focused and avoids forcing the frontend to
 rebuild rankings by scraping every historical submission.
@@ -264,7 +285,7 @@ After evaluation:
 - the submission JSON is updated,
 - `score_storage[sub_id]` is updated,
 - `TaskManager.record_evaluation()` is emitted after finalization,
-- the first score at or above the task threshold schedules the native GEN transfer,
+- the first score at or above the task threshold marks the external ETH payout ready,
 - `GlobalLeaderboard.record_score()` is emitted after finalization when points are greater than `0`.
 
 ---
@@ -288,14 +309,19 @@ cp .env.example .env.local
 Active Bradbury configuration:
 
 ```bash
-VITE_TASK_MANAGER_ADDRESS=0xFB837f3aC53AEdf9951580D04eFb1D2aacd46959
-VITE_PROOF_OF_IMPACT_ADDRESS=0xCCf03Aba1011CE2393eA8B762208e9bdd82123Bf
+VITE_TASK_MANAGER_ADDRESS=0xF4Fa50664E9c61e3a910b796aA702BfA96C8a50D
+VITE_PROOF_OF_IMPACT_ADDRESS=0xE872ab6D367669af00CCCd9295CeaA9FcCD2BFCe
 VITE_GLOBAL_LEADERBOARD_ADDRESS=0x552FA16bD9F9b9Bd2F6fDa577657033F01d505fB
+VITE_L2_ESCROW_11155111=0xc49fD9D21Deb2f5cbc377Aa21980E3856D4A6931
+VITE_L2_ESCROW_84532=0xc49fD9D21Deb2f5cbc377Aa21980E3856D4A6931
+VITE_L2_ESCROW_11155420=0xc49fD9D21Deb2f5cbc377Aa21980E3856D4A6931
+VITE_L2_ESCROW_421614=0xc49fD9D21Deb2f5cbc377Aa21980E3856D4A6931
 ```
 
 The app uses:
 
-- `TaskManager` for payable task creation, escrow reads, and expired refunds,
+- `L2TaskEscrow` for native ETH deposits, releases, and refunds,
+- `TaskManager` for task creation, escrow receipt reads, and expired refund readiness,
 - `ProofOfImpact` for submissions and evaluation,
 - `GlobalLeaderboard` for rankings.
 
@@ -324,7 +350,8 @@ The app uses:
 - Node.js 18+
 - npm
 - MetaMask
-- Bradbury test GEN from the GenLayer faucet
+- Bradbury test GEN from the GenLayer faucet for GenLayer writes
+- testnet ETH on the selected L2 testnets for task escrow funding
 
 ### Install
 
@@ -373,8 +400,8 @@ npx --yes genlayer@latest network info
 Read deployed contract state:
 
 ```bash
-npx --yes genlayer@latest call 0xCCf03Aba1011CE2393eA8B762208e9bdd82123Bf get_version
-npx --yes genlayer@latest call 0xFB837f3aC53AEdf9951580D04eFb1D2aacd46959 get_authorized_submitter
+npx --yes genlayer@latest call 0xE872ab6D367669af00CCCd9295CeaA9FcCD2BFCe get_version
+npx --yes genlayer@latest call 0xF4Fa50664E9c61e3a910b796aA702BfA96C8a50D get_authorized_submitter
 npx --yes genlayer@latest call 0x552FA16bD9F9b9Bd2F6fDa577657033F01d505fB get_authorized_writer
 ```
 
@@ -400,13 +427,17 @@ npm run build
 ```text
 Proof-of-Impact/
   contracts/
-    ProofOfImpact.py      # v4.2 template-aware evaluator
-    TaskManager.py        # v4.2 escrow + templates + ETH testnet rail metadata
+    ProofOfImpact.py      # v4.3 template-aware evaluator
+    TaskManager.py        # v4.3 templates + external ETH escrow lifecycle
     global_leaderboard.py
     contractABI.json
+    evm/
+      L2TaskEscrow.sol
   tests/
     direct/
       test_task_manager_escrow.py
+    evm/
+      L2TaskEscrow.test.cjs
   public/
     logo.svg
   src/
@@ -426,12 +457,10 @@ Proof-of-Impact/
 - Private keys and seed phrases must never be committed.
 - `.env`, `.env.local`, `.codex-py`, `node_modules`, and `dist` are ignored.
 - This repository stores only public contract addresses and public transaction hashes.
-- Task creators cannot cancel or close a funded bounty early; GEN remains locked until a qualifying winner or expiry.
+- Task creators cannot cancel or close a funded bounty early; ETH remains locked in L2 escrow until a qualifying winner or expiry.
 - Expiry refunds wait through a 24-hour settlement grace period so finalized submission messages can arrive.
-- Payout state is committed before the external transfer is scheduled, preventing duplicate settlement.
-- ETH testnet rails are stored explicitly as task metadata. The current
-  canonical escrow remains native GEN on GenLayer until a separate L2 escrow or
-  bridge module is connected; the app does not fake an L2 transfer.
+- GenLayer accounting is not reduced until a successful L2 payout or refund transaction is recorded.
+- Failed L2 payout/refund transfers revert and remain retryable instead of marking the task settled.
 - The browser may store a local burner key in local storage for GenLayer calls;
   that key is local-only and is not part of the repository.
 
@@ -439,7 +468,7 @@ Proof-of-Impact/
 
 ## Roadmap
 
-- Optional L2 escrow modules for the ETH testnet rails already stored by tasks.
+- Optional authenticated cross-chain settlement proofs instead of the current authorized settler path.
 - Richer leaderboard filters by task type and date window.
 - Better evaluation receipts in the UI with explorer links.
 - Optional appeal/re-evaluation workflow.

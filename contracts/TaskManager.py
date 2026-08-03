@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import json
 
 
-CONTRACT_VERSION = "4.2.0"
+CONTRACT_VERSION = "4.3.0"
 
 TASK_OPEN = "open"
 TASK_CLOSED = "closed"
@@ -15,6 +15,11 @@ TASK_EXPIRED = "expired"
 ESCROW_FUNDED = "funded"
 ESCROW_PAYOUT_SCHEDULED = "payout_scheduled"
 ESCROW_REFUND_SCHEDULED = "refund_scheduled"
+ESCROW_EXTERNAL_FUNDED = "external_funded"
+ESCROW_EXTERNAL_PAYOUT_READY = "external_payout_ready"
+ESCROW_EXTERNAL_PAYOUT_RELEASED = "external_payout_released"
+ESCROW_EXTERNAL_REFUND_READY = "external_refund_ready"
+ESCROW_EXTERNAL_REFUNDED = "external_refunded"
 
 SUBMISSION_PENDING = "pending"
 SUBMISSION_EVALUATED = "evaluated"
@@ -26,6 +31,7 @@ MAX_CRITERIA_LENGTH = 2000
 MAX_CANCEL_REASON_LENGTH = 300
 MAX_REWARD_POINTS = 1000000
 MAX_TEMPLATE_KEY_LENGTH = 32
+MAX_EXTERNAL_REF_LENGTH = 96
 MIN_PAYOUT_THRESHOLD = 50
 MAX_PAYOUT_THRESHOLD = 100
 MIN_DURATION_SECONDS = 3600
@@ -184,6 +190,13 @@ def payout_network_profile(chain_id: u256) -> dict:
     raise gl.vm.UserError("unsupported payout network")
 
 
+def validate_external_ref(value: str, field_name: str) -> str:
+    cleaned = validate_text(value, field_name, MAX_EXTERNAL_REF_LENGTH)
+    if not cleaned.startswith("0x"):
+        raise gl.vm.UserError(f"{field_name} must be a hex value")
+    return cleaned
+
+
 class TaskManager(gl.Contract):
     task_storage: TreeMap[str, str]
     task_submissions_json: TreeMap[str, str]
@@ -206,6 +219,10 @@ class TaskManager(gl.Contract):
     task_winning_submission: TreeMap[str, str]
     task_payout_amount: TreeMap[str, u256]
     task_refund_amount: TreeMap[str, u256]
+    task_external_escrow_contract: TreeMap[str, str]
+    task_external_escrow_id: TreeMap[str, str]
+    task_external_deposit_tx: TreeMap[str, str]
+    task_external_settlement_tx: TreeMap[str, str]
     submission_state: TreeMap[str, str]
     submission_task: TreeMap[str, str]
     submission_worker: TreeMap[str, str]
@@ -213,6 +230,9 @@ class TaskManager(gl.Contract):
     total_locked_wei: u256
     total_paid_wei: u256
     total_refunded_wei: u256
+    total_external_locked_wei: u256
+    total_external_paid_wei: u256
+    total_external_refunded_wei: u256
 
     def __init__(self):
         self.owner = gl.message.sender_address
@@ -222,6 +242,9 @@ class TaskManager(gl.Contract):
         self.total_locked_wei = u256(0)
         self.total_paid_wei = u256(0)
         self.total_refunded_wei = u256(0)
+        self.total_external_locked_wei = u256(0)
+        self.total_external_paid_wei = u256(0)
+        self.total_external_refunded_wei = u256(0)
 
     def _sender(self) -> str:
         return normalize_address(str(gl.message.sender_address))
@@ -287,6 +310,13 @@ class TaskManager(gl.Contract):
         locked = int(self.total_locked_wei)
         self.total_locked_wei = u256(max(0, locked - amount))
 
+    def _decrease_total_external_locked(self, amount: int) -> None:
+        locked = int(self.total_external_locked_wei)
+        self.total_external_locked_wei = u256(max(0, locked - amount))
+
+    def _is_external_escrow(self, task_data: dict) -> bool:
+        return str(task_data.get("escrow_kind", "")) == "external_evm_escrow"
+
     def _set_task_status(self, task_id: str, task_data: dict, status: str) -> None:
         previous = str(task_data.get("status", ""))
         if previous == status:
@@ -349,6 +379,30 @@ class TaskManager(gl.Contract):
             if task_id in self.task_refund_amount
             else 0
         )
+        task_data["escrow_kind"] = task_data.get(
+            "escrow_kind",
+            "genlayer_native_escrow",
+        )
+        task_data["external_escrow_contract"] = (
+            self.task_external_escrow_contract[task_id]
+            if task_id in self.task_external_escrow_contract
+            else task_data.get("external_escrow_contract", "")
+        )
+        task_data["external_escrow_id"] = (
+            self.task_external_escrow_id[task_id]
+            if task_id in self.task_external_escrow_id
+            else task_data.get("external_escrow_id", "")
+        )
+        task_data["external_deposit_tx"] = (
+            self.task_external_deposit_tx[task_id]
+            if task_id in self.task_external_deposit_tx
+            else task_data.get("external_deposit_tx", "")
+        )
+        task_data["external_settlement_tx"] = (
+            self.task_external_settlement_tx[task_id]
+            if task_id in self.task_external_settlement_tx
+            else task_data.get("external_settlement_tx", "")
+        )
 
     def _record_submission_identity(
         self,
@@ -381,6 +435,17 @@ class TaskManager(gl.Contract):
             raise gl.vm.UserError("escrow has no remaining balance")
 
         normalized_worker = normalize_address(worker)
+        if self._is_external_escrow(task_data):
+            self.task_settled[task_id] = u256(1)
+            self.task_escrow_status[task_id] = ESCROW_EXTERNAL_PAYOUT_READY
+            self.task_winner[task_id] = normalized_worker
+            self.task_winning_submission[task_id] = sub_id
+            self.task_payout_amount[task_id] = u256(amount)
+
+            self._set_escrow_json(task_id, task_data)
+            self._set_task_status(task_id, task_data, TASK_CLOSED)
+            return
+
         self.task_settled[task_id] = u256(1)
         self.task_escrow_remaining[task_id] = u256(0)
         self.task_escrow_status[task_id] = ESCROW_PAYOUT_SCHEDULED
@@ -408,6 +473,16 @@ class TaskManager(gl.Contract):
         amount = int(self.task_escrow_remaining[task_id])
         creator = normalize_address(str(task_data.get("creator", "")))
 
+        if self._is_external_escrow(task_data):
+            self.task_settled[task_id] = u256(1)
+            self.task_escrow_status[task_id] = ESCROW_EXTERNAL_REFUND_READY
+            self.task_refund_amount[task_id] = u256(amount)
+
+            task_data["cancel_reason"] = reason
+            self._set_escrow_json(task_id, task_data)
+            self._set_task_status(task_id, task_data, status)
+            return
+
         self.task_settled[task_id] = u256(1)
         self.task_escrow_remaining[task_id] = u256(0)
         self.task_escrow_status[task_id] = ESCROW_REFUND_SCHEDULED
@@ -434,6 +509,10 @@ class TaskManager(gl.Contract):
         bounty_wei: u256,
         task_template: str,
         payout_chain_id: u256,
+        external_escrow_contract: str,
+        external_escrow_id: str,
+        external_deposit_tx: str,
+        external_amount_wei: u256,
     ) -> str:
         clean_title = validate_text(title, "title", MAX_TITLE_LENGTH)
         clean_description = validate_text(
@@ -444,31 +523,75 @@ class TaskManager(gl.Contract):
         clean_criteria = validate_text(criteria, "criteria", MAX_CRITERIA_LENGTH)
         template = template_profile(task_template)
         payout_network = payout_network_profile(payout_chain_id)
+        is_external = int(payout_network["chain_id"]) != BRADBURY_CHAIN_ID
 
         if reward_points <= u256(0):
             raise gl.vm.UserError("reward_points must be greater than 0")
         if reward_points > u256(MAX_REWARD_POINTS):
             raise gl.vm.UserError("reward_points exceeds platform maximum")
-        self._validate_financial_terms(
-            bounty_wei,
-            payout_threshold,
-            duration_seconds,
-        )
+        if payout_threshold < u256(MIN_PAYOUT_THRESHOLD):
+            raise gl.vm.UserError("payout threshold is too low")
+        if payout_threshold > u256(MAX_PAYOUT_THRESHOLD):
+            raise gl.vm.UserError("payout threshold exceeds 100")
+        if duration_seconds < u256(MIN_DURATION_SECONDS):
+            raise gl.vm.UserError("task duration must be at least one hour")
+        if duration_seconds > u256(MAX_DURATION_SECONDS):
+            raise gl.vm.UserError("task duration exceeds 30 days")
+
+        escrow_kind = "genlayer_native_escrow"
+        escrow_status = ESCROW_FUNDED
+        escrow_amount = bounty_wei
+        clean_external_contract = ""
+        clean_external_id = ""
+        clean_external_deposit_tx = ""
+
+        if is_external:
+            if bounty_wei > u256(0):
+                raise gl.vm.UserError("GEN value must be zero for external ETH escrow")
+            if external_amount_wei <= u256(0):
+                raise gl.vm.UserError("external ETH escrow amount is required")
+            clean_external_contract = validate_external_ref(
+                external_escrow_contract,
+                "external_escrow_contract",
+            )
+            clean_external_id = validate_external_ref(
+                external_escrow_id,
+                "external_escrow_id",
+            )
+            clean_external_deposit_tx = validate_external_ref(
+                external_deposit_tx,
+                "external_deposit_tx",
+            )
+            escrow_kind = "external_evm_escrow"
+            escrow_status = ESCROW_EXTERNAL_FUNDED
+            escrow_amount = external_amount_wei
+        else:
+            if external_escrow_contract or external_escrow_id or external_deposit_tx:
+                raise gl.vm.UserError("external escrow fields require an ETH testnet rail")
+            self._validate_financial_terms(
+                bounty_wei,
+                payout_threshold,
+                duration_seconds,
+            )
 
         normalized_creator = normalize_address(creator)
         task_id = "task-" + str(self.task_count)
         deadline = self._now() + int(duration_seconds)
 
-        self.task_escrow_total[task_id] = bounty_wei
-        self.task_escrow_remaining[task_id] = bounty_wei
+        self.task_escrow_total[task_id] = escrow_amount
+        self.task_escrow_remaining[task_id] = escrow_amount
         self.task_payout_threshold[task_id] = payout_threshold
         self.task_deadline[task_id] = u256(deadline)
         self.task_settled[task_id] = u256(0)
-        self.task_escrow_status[task_id] = ESCROW_FUNDED
+        self.task_escrow_status[task_id] = escrow_status
         self.task_winner[task_id] = ""
         self.task_winning_submission[task_id] = ""
         self.task_payout_amount[task_id] = u256(0)
         self.task_refund_amount[task_id] = u256(0)
+        self.task_external_escrow_contract[task_id] = clean_external_contract
+        self.task_external_escrow_id[task_id] = clean_external_id
+        self.task_external_deposit_tx[task_id] = clean_external_deposit_tx
+        self.task_external_settlement_tx[task_id] = ""
 
         task_dict = {
             "task_id": task_id,
@@ -484,6 +607,11 @@ class TaskManager(gl.Contract):
             "payout_network_name": payout_network["name"],
             "payout_token_symbol": payout_network["native_token"],
             "payout_rail_type": payout_network["rail_type"],
+            "escrow_kind": escrow_kind,
+            "external_escrow_contract": clean_external_contract,
+            "external_escrow_id": clean_external_id,
+            "external_deposit_tx": clean_external_deposit_tx,
+            "external_settlement_tx": "",
             "reward_points": int(reward_points),
             "status": TASK_OPEN,
             "creator": normalized_creator,
@@ -503,7 +631,12 @@ class TaskManager(gl.Contract):
 
         self.task_count = u256(int(self.task_count) + 1)
         self.active_task_count = u256(int(self.active_task_count) + 1)
-        self.total_locked_wei = u256(int(self.total_locked_wei) + int(bounty_wei))
+        if is_external:
+            self.total_external_locked_wei = u256(
+                int(self.total_external_locked_wei) + int(escrow_amount)
+            )
+        else:
+            self.total_locked_wei = u256(int(self.total_locked_wei) + int(escrow_amount))
         return task_id
 
     @gl.public.write
@@ -537,6 +670,10 @@ class TaskManager(gl.Contract):
             gl.message.value,
             "code",
             u256(BRADBURY_CHAIN_ID),
+            "",
+            "",
+            "",
+            u256(0),
         )
 
     @gl.public.write.payable
@@ -562,6 +699,43 @@ class TaskManager(gl.Contract):
             gl.message.value,
             task_template,
             payout_chain_id,
+            "",
+            "",
+            "",
+            u256(0),
+        )
+
+    @gl.public.write
+    def create_task_with_external_eth_escrow(
+        self,
+        title: str,
+        description: str,
+        criteria: str,
+        reward_points: u256,
+        payout_threshold: u256,
+        duration_seconds: u256,
+        task_template: str,
+        payout_chain_id: u256,
+        external_escrow_contract: str,
+        external_escrow_id: str,
+        external_deposit_tx: str,
+        external_amount_wei: u256,
+    ) -> str:
+        return self._create_task_for(
+            self._sender(),
+            title,
+            description,
+            criteria,
+            reward_points,
+            payout_threshold,
+            duration_seconds,
+            u256(0),
+            task_template,
+            payout_chain_id,
+            external_escrow_contract,
+            external_escrow_id,
+            external_deposit_tx,
+            external_amount_wei,
         )
 
     @gl.public.write.payable
@@ -587,6 +761,10 @@ class TaskManager(gl.Contract):
             gl.message.value,
             "code",
             u256(BRADBURY_CHAIN_ID),
+            "",
+            "",
+            "",
+            u256(0),
         )
 
     @gl.public.write.payable
@@ -614,6 +792,45 @@ class TaskManager(gl.Contract):
             gl.message.value,
             task_template,
             payout_chain_id,
+            "",
+            "",
+            "",
+            u256(0),
+        )
+
+    @gl.public.write
+    def create_task_for_with_external_eth_escrow(
+        self,
+        creator: str,
+        title: str,
+        description: str,
+        criteria: str,
+        reward_points: u256,
+        payout_threshold: u256,
+        duration_seconds: u256,
+        task_template: str,
+        payout_chain_id: u256,
+        external_escrow_contract: str,
+        external_escrow_id: str,
+        external_deposit_tx: str,
+        external_amount_wei: u256,
+    ) -> str:
+        self._require_submitter()
+        return self._create_task_for(
+            creator,
+            title,
+            description,
+            criteria,
+            reward_points,
+            payout_threshold,
+            duration_seconds,
+            u256(0),
+            task_template,
+            payout_chain_id,
+            external_escrow_contract,
+            external_escrow_id,
+            external_deposit_tx,
+            external_amount_wei,
         )
 
     @gl.public.write
@@ -719,6 +936,57 @@ class TaskManager(gl.Contract):
             TASK_EXPIRED,
             "task expired without a qualifying winner",
         )
+
+    @gl.public.write
+    def record_external_payout(self, task_id: str, settlement_tx: str) -> None:
+        task_data = self._get_task(task_id)
+        if not self._is_external_escrow(task_data):
+            raise gl.vm.UserError("task does not use external ETH escrow")
+        if self.task_escrow_status[task_id] != ESCROW_EXTERNAL_PAYOUT_READY:
+            raise gl.vm.UserError("external payout is not ready")
+
+        sender = self._sender()
+        creator = normalize_address(str(task_data.get("creator", "")))
+        winner = normalize_address(self.task_winner[task_id])
+        if sender != creator and sender != winner and gl.message.sender_address != self.owner:
+            raise gl.vm.UserError("only creator, winner, or owner")
+
+        clean_tx = validate_external_ref(settlement_tx, "settlement_tx")
+        amount = int(self.task_escrow_remaining[task_id])
+        self.task_external_settlement_tx[task_id] = clean_tx
+        self.task_escrow_remaining[task_id] = u256(0)
+        self.task_escrow_status[task_id] = ESCROW_EXTERNAL_PAYOUT_RELEASED
+        self.total_external_paid_wei = u256(int(self.total_external_paid_wei) + amount)
+        self._decrease_total_external_locked(amount)
+
+        self._set_escrow_json(task_id, task_data)
+        self._store_task(task_id, task_data)
+
+    @gl.public.write
+    def record_external_refund(self, task_id: str, settlement_tx: str) -> None:
+        task_data = self._get_task(task_id)
+        if not self._is_external_escrow(task_data):
+            raise gl.vm.UserError("task does not use external ETH escrow")
+        if self.task_escrow_status[task_id] != ESCROW_EXTERNAL_REFUND_READY:
+            raise gl.vm.UserError("external refund is not ready")
+
+        sender = self._sender()
+        creator = normalize_address(str(task_data.get("creator", "")))
+        if sender != creator and gl.message.sender_address != self.owner:
+            raise gl.vm.UserError("only creator or owner")
+
+        clean_tx = validate_external_ref(settlement_tx, "settlement_tx")
+        amount = int(self.task_escrow_remaining[task_id])
+        self.task_external_settlement_tx[task_id] = clean_tx
+        self.task_escrow_remaining[task_id] = u256(0)
+        self.task_escrow_status[task_id] = ESCROW_EXTERNAL_REFUNDED
+        self.total_external_refunded_wei = u256(
+            int(self.total_external_refunded_wei) + amount
+        )
+        self._decrease_total_external_locked(amount)
+
+        self._set_escrow_json(task_id, task_data)
+        self._store_task(task_id, task_data)
 
     @gl.public.write
     def record_submission(
@@ -948,6 +1216,20 @@ class TaskManager(gl.Contract):
                     if task_id in self.task_escrow_status
                     else ""
                 ),
+                "escrow_kind": self._get_task(task_id).get(
+                    "escrow_kind",
+                    "genlayer_native_escrow",
+                ),
+                "external_escrow_contract": (
+                    self.task_external_escrow_contract[task_id]
+                    if task_id in self.task_external_escrow_contract
+                    else ""
+                ),
+                "external_escrow_id": (
+                    self.task_external_escrow_id[task_id]
+                    if task_id in self.task_external_escrow_id
+                    else ""
+                ),
                 "winner": (
                     self.task_winner[task_id] if task_id in self.task_winner else ""
                 ),
@@ -974,6 +1256,30 @@ class TaskManager(gl.Contract):
                 "winning_submission": self.task_winning_submission[task_id],
                 "payout_wei": str(int(self.task_payout_amount[task_id])),
                 "refund_wei": str(int(self.task_refund_amount[task_id])),
+                "escrow_kind": self._get_task(task_id).get(
+                    "escrow_kind",
+                    "genlayer_native_escrow",
+                ),
+                "external_escrow_contract": (
+                    self.task_external_escrow_contract[task_id]
+                    if task_id in self.task_external_escrow_contract
+                    else ""
+                ),
+                "external_escrow_id": (
+                    self.task_external_escrow_id[task_id]
+                    if task_id in self.task_external_escrow_id
+                    else ""
+                ),
+                "external_deposit_tx": (
+                    self.task_external_deposit_tx[task_id]
+                    if task_id in self.task_external_deposit_tx
+                    else ""
+                ),
+                "external_settlement_tx": (
+                    self.task_external_settlement_tx[task_id]
+                    if task_id in self.task_external_settlement_tx
+                    else ""
+                ),
             },
             sort_keys=True,
         )
@@ -994,6 +1300,11 @@ class TaskManager(gl.Contract):
                 "total_locked_wei": str(int(self.total_locked_wei)),
                 "total_paid_wei": str(int(self.total_paid_wei)),
                 "total_refunded_wei": str(int(self.total_refunded_wei)),
+                "total_external_locked_wei": str(int(self.total_external_locked_wei)),
+                "total_external_paid_wei": str(int(self.total_external_paid_wei)),
+                "total_external_refunded_wei": str(
+                    int(self.total_external_refunded_wei)
+                ),
                 "contract_balance_wei": str(int(self.balance)),
                 "owner": str(self.owner),
                 "authorized_submitter": str(self.authorized_submitter),

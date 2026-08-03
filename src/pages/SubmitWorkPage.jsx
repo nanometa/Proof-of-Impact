@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { getTask, submitWork } from '../lib/contract'
+import { isExternalEthTask } from '../lib/evmEscrow'
 import { useToast } from '../context/ToastContext'
 import { formatDeadline, formatGen } from '../lib/utils'
 import Spinner from '../components/Spinner'
@@ -81,7 +82,7 @@ export default function SubmitWorkPage() {
           <p className="text-sm text-white/50 mt-1 line-clamp-2 font-sans">{task.description}</p>
           <div className="flex flex-wrap items-center gap-4 mt-3 pt-3 border-t border-white/10 text-xs">
             <span className="font-mono text-[#0ea5e9]">
-              {formatGen(task.escrow_remaining_wei)} GEN bounty
+              {formatGen(task.escrow_remaining_wei)} {task.payout_token_symbol || (isExternalEthTask(task) ? 'ETH' : 'GEN')} bounty
             </span>
             <span className="text-white/45">Score {task.payout_threshold}+ to win</span>
             <span className="text-white/45">Due {formatDeadline(task.deadline)}</span>

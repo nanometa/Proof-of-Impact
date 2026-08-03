@@ -8,7 +8,9 @@ import {
   getScore,
   getSubmissionEvaluation,
   getCachedEvaluation,
+  recordExternalPayout,
 } from '../lib/contract'
+import { isExternalEthTask, releaseL2TaskEscrow } from '../lib/evmEscrow'
 import { useWallet } from '../context/WalletContext'
 import { useToast } from '../context/ToastContext'
 import { formatGen } from '../lib/utils'
@@ -124,6 +126,36 @@ export default function SubmissionPage() {
     }
   }
 
+  async function handleReleaseExternalPayout() {
+    if (!isConnected) {
+      addToast({ type: 'warning', message: 'Connect your wallet from the header first' })
+      return
+    }
+
+    setSettling(true)
+    try {
+      const finalScore = evaluation?.score ?? score ?? 0
+      const threshold = evaluation?.payout_threshold ?? task?.payout_threshold ?? 100
+      const l2Hash = await releaseL2TaskEscrow({
+        task,
+        submission,
+        score: finalScore,
+        threshold,
+      })
+      const result = await recordExternalPayout(task.task_id, l2Hash)
+      addToast({
+        type: 'success',
+        message: 'ETH payout released from L2 escrow',
+        txHash: result.hash,
+      })
+      await loadAll()
+    } catch (error) {
+      addToast({ type: 'error', message: error.message || 'ETH payout release failed' })
+    } finally {
+      setSettling(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-4">
@@ -162,6 +194,7 @@ export default function SubmissionPage() {
           evaluation={evaluation}
           settling={settling}
           onRetrySettlement={handleRetrySettlement}
+          onReleaseExternalPayout={handleReleaseExternalPayout}
         />
       ) : (
         <PendingView
@@ -246,6 +279,7 @@ function EvaluatedView({
   evaluation,
   settling,
   onRetrySettlement,
+  onReleaseExternalPayout,
 }) {
   // Prefer the on-chain evaluation and use the cached receipt as a fallback.
   const finalScore = evaluation?.score ?? score ?? 0
@@ -258,6 +292,12 @@ function EvaluatedView({
   const isWinner = task?.winning_submission === submission.sub_id
   const settlementPending =
     payoutEligible && !task?.winner && task?.escrow_status === 'funded'
+  const externalReady =
+    isExternalEthTask(task) &&
+    task?.escrow_status === 'external_payout_ready' &&
+    task?.winning_submission === submission.sub_id
+  const externalReleased =
+    isExternalEthTask(task) && task?.escrow_status === 'external_payout_released'
 
   return (
     <div className="space-y-6">
@@ -273,11 +313,23 @@ function EvaluatedView({
             : 'border-white/10 bg-white/5 text-white/55'
         }`}>
           {isWinner
-            ? `${formatGen(task?.payout_wei)} GEN payout scheduled on-chain`
+            ? `${formatGen(task?.payout_wei)} ${task?.payout_token_symbol || 'GEN'} ${
+                externalReleased ? 'payout released on L2' : 'payout ready'
+              }`
             : payoutEligible
               ? 'Winning score reached; escrow settlement is being finalized'
               : `Score below the ${evaluation?.payout_threshold ?? task?.payout_threshold ?? 100}/100 payout threshold`}
         </div>
+        {externalReady && (
+          <button
+            type="button"
+            onClick={onReleaseExternalPayout}
+            disabled={settling}
+            className="mt-3 px-4 py-2 rounded-lg border border-emerald-400/40 text-emerald-300 hover:bg-emerald-400/10 text-sm font-semibold disabled:opacity-40"
+          >
+            {settling ? 'Releasing ETH...' : 'Release ETH from L2 escrow'}
+          </button>
+        )}
         {settlementPending && (
           <button
             type="button"

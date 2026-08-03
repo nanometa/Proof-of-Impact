@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { createTask, getTaskCount, waitForTaskCount } from '../lib/contract'
+import { createExternalEthTask, getTaskCount, waitForTaskCount } from '../lib/contract'
 import { useToast } from '../context/ToastContext'
 import { PAYOUT_NETWORKS, TASK_TEMPLATES, getTaskTemplate } from '../lib/taskProfiles'
+import { createL2TaskEscrow } from '../lib/evmEscrow'
 import Spinner from '../components/Spinner'
 
 export default function CreateTaskPage() {
@@ -15,7 +16,7 @@ export default function CreateTaskPage() {
   const [taskTemplate, setTaskTemplate] = useState('code')
   const [payoutChainId, setPayoutChainId] = useState(String(PAYOUT_NETWORKS[0].chainId))
   const [rewardPoints, setRewardPoints] = useState('100')
-  const [bountyGen, setBountyGen] = useState('0.01')
+  const [bountyEth, setBountyEth] = useState('0.01')
   const [payoutThreshold, setPayoutThreshold] = useState('70')
   const [durationDays, setDurationDays] = useState('7')
   const [loading, setLoading] = useState(false)
@@ -30,7 +31,7 @@ export default function CreateTaskPage() {
     }
 
     const points = Number(rewardPoints)
-    const bounty = Number(bountyGen)
+    const bounty = Number(bountyEth)
     const threshold = Number(payoutThreshold)
     const days = Number(durationDays)
     const selectedNetwork = PAYOUT_NETWORKS.find(
@@ -42,7 +43,7 @@ export default function CreateTaskPage() {
       return
     }
     if (!Number.isFinite(bounty) || bounty <= 0) {
-      addToast({ type: 'error', message: 'A positive GEN bounty is required' })
+      addToast({ type: 'error', message: 'A positive ETH bounty is required' })
       return
     }
     if (!Number.isInteger(threshold) || threshold < 50 || threshold > 100) {
@@ -59,19 +60,33 @@ export default function CreateTaskPage() {
     }
 
     setLoading(true)
-    setSubmitStatus(`Locking GEN bounty and recording ${selectedNetwork.name} ETH rail...`)
+    setSubmitStatus(`Depositing ETH into ${selectedNetwork.name} escrow...`)
     try {
       const previousCount = await getTaskCount().catch(() => 0)
-      const result = await createTask(
+      const durationSeconds = days * 24 * 60 * 60
+      const refundAfter = Math.floor(Date.now() / 1000) + durationSeconds + 24 * 60 * 60
+      const seed = `proof-of-impact:${selectedNetwork.chainId}:${Date.now()}:${crypto.randomUUID?.() || Math.random()}:${title.trim()}`
+      const l2Escrow = await createL2TaskEscrow({
+        chainId: Number(payoutChainId),
+        amountEth: bountyEth,
+        refundAfter,
+        seed,
+      })
+
+      setSubmitStatus('Registering task on GenLayer Bradbury...')
+      const result = await createExternalEthTask(
         title.trim(),
         description.trim(),
         criteria.trim(),
         points,
-        bountyGen,
         threshold,
-        days * 24 * 60 * 60,
+        durationSeconds,
         taskTemplate,
         Number(payoutChainId),
+        l2Escrow.address,
+        l2Escrow.escrowId,
+        l2Escrow.hash,
+        l2Escrow.amountWei,
       )
       if (result.hash) {
         setSubmitStatus('Syncing on-chain task...')
@@ -112,7 +127,7 @@ export default function CreateTaskPage() {
           </div>
           <h1 className="font-heading text-2xl font-semibold text-white tracking-wide">Create Task</h1>
         </div>
-        <p className="text-sm text-white/50 mb-8 ml-[52px] font-sans">Fund verifiable work with an on-chain GEN bounty.</p>
+        <p className="text-sm text-white/50 mb-8 ml-[52px] font-sans">Fund verifiable work with a real ETH testnet escrow.</p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
@@ -186,13 +201,13 @@ export default function CreateTaskPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs text-white/40 uppercase tracking-wider mb-2 font-semibold font-sans">GEN Bounty</label>
+              <label className="block text-xs text-white/40 uppercase tracking-wider mb-2 font-semibold font-sans">ETH Bounty</label>
               <input
                 type="number"
                 min="0.000001"
                 step="0.000001"
-                value={bountyGen}
-                onChange={e => setBountyGen(e.target.value)}
+                value={bountyEth}
+                onChange={e => setBountyEth(e.target.value)}
                 placeholder="0.01"
                 className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:border-[#8B5CF6]/50 focus:bg-white/10 transition-colors font-mono text-sm"
               />
@@ -249,7 +264,7 @@ export default function CreateTaskPage() {
               ))}
             </select>
             <p className="text-xs text-white/40 mt-2 leading-relaxed">
-              GenLayer still performs the AI consensus and canonical escrow settlement. The selected ETH testnet rail is recorded on-chain so tasks are no longer generic or single-network.
+              The ETH bounty is deposited into a real L2 escrow first. GenLayer then records the task, evaluates the work, and unlocks the release/refund workflow from the selected network.
             </p>
           </div>
 
@@ -258,8 +273,7 @@ export default function CreateTaskPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
             </svg>
             <p className="text-xs text-white/60 leading-relaxed">
-              The bounty is locked in the TaskManager contract. It is paid once to the first submission reaching the winning score, or returned after the deadline and 24-hour settlement window.
-              The selected review template tells validators which evidence to require.
+              The bounty is locked in the L2 escrow contract. GenLayer stores the verdict and winner; the L2 escrow performs the actual ETH transfer or refund atomically.
             </p>
           </div>
 
@@ -274,7 +288,7 @@ export default function CreateTaskPage() {
                 {submitStatus || 'Creating Task...'}
               </>
             ) : (
-              'Lock GEN & Create Task'
+              'Deposit ETH & Create Task'
             )}
           </button>
         </form>

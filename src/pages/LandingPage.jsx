@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ACTIVE_DEPLOYMENT } from '../lib/deployments'
 
@@ -51,7 +51,7 @@ const steps = [
     number: '04',
     title: 'Settle onchain',
     description:
-      'Consensus finalizes the score, feedback, reputation, and—when qualified—the GEN payout.',
+      'Consensus finalizes the score, feedback, reputation, and when qualified unlocks the L2 ETH payout.',
   },
 ]
 
@@ -68,7 +68,6 @@ const payoutRails = ['Sepolia', 'Base Sepolia', 'OP Sepolia', 'Arbitrum Sepolia'
 function ArrowIcon() {
   return <span aria-hidden="true">↗</span>
 }
-
 function CheckIcon() {
   return <span aria-hidden="true">✓</span>
 }
@@ -141,7 +140,7 @@ export default function LandingPage() {
 
             <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3 text-xs text-foreground/50">
               <span className="flex items-center gap-2">
-                <CheckIcon /> Native GEN escrow
+                <CheckIcon /> Real L2 ETH escrow
               </span>
               <span className="flex items-center gap-2">
                 <CheckIcon /> AI consensus
@@ -257,9 +256,9 @@ export default function LandingPage() {
                 Rewards secured before work begins.
               </h3>
               <p className="mt-4 max-w-xl text-base leading-7 text-foreground/58">
-                Native GEN is locked in the TaskManager contract when a funded task
-                is created. It can only move to a qualifying contributor or return
-                to the creator after expiry.
+                Native ETH is locked in the selected L2 escrow before a funded
+                task is created. It can only move to a qualifying contributor or
+                return to the creator after expiry.
               </p>
             </div>
             <div className="landing-escrow-flow">
@@ -268,7 +267,7 @@ export default function LandingPage() {
                 <strong>Funds task</strong>
               </div>
               <span className="landing-flow-line" />
-              <div className="landing-escrow-core">GEN</div>
+              <div className="landing-escrow-core">ETH</div>
               <span className="landing-flow-line" />
               <div className="text-right">
                 <span>Contributor</span>
@@ -330,16 +329,15 @@ export default function LandingPage() {
           </article>
 
           <article className="landing-feature-card">
-            <span className="landing-card-index">04 / ETH testnet rails</span>
+            <span className="landing-card-index">04 / Real ETH testnet escrow</span>
             <div>
               <h3 className="font-heading text-3xl font-medium tracking-[-0.035em]">
-                Network choice is recorded with every task.
+                ETH is locked before the task goes live.
               </h3>
               <p className="mt-4 max-w-xl text-base leading-7 text-foreground/58">
-                The GenLayer verdict remains canonical, while each task records a
-                selected native ETH testnet rail for cross-network payout readiness.
-                This keeps the current escrow honest while expanding beyond a
-                single-network workflow.
+                The GenLayer verdict remains canonical, while native ETH is held
+                in a dedicated escrow on Sepolia, Base Sepolia, OP Sepolia, or
+                Arbitrum Sepolia. Failed release/refund transfers stay retryable.
               </p>
             </div>
             <div className="mt-6 grid grid-cols-2 gap-2">

@@ -1,12 +1,15 @@
 {
   "name": "proof-of-impact",
   "private": true,
-  "version": "4.2.0",
+  "version": "4.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "compile:evm": "hardhat compile",
+    "test:evm": "hardhat test",
+    "deploy:evm-escrows": "node scripts/deploy-l2-escrows.cjs"
   },
   "dependencies": {
     "@fontsource/geist-sans": "^5.2.5",
@@ -21,10 +24,13 @@
     "wagmi": "^2.19.5"
   },
   "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^3.1.2",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@vitejs/plugin-react": "^4.2.0",
     "autoprefixer": "^10.4.0",
+    "ethers": "^6.14.0",
+    "hardhat": "^2.26.3",
     "postcss": "^8.4.0",
     "tailwindcss": "^3.4.0",
     "vite": "^5.0.0"

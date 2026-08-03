@@ -3,44 +3,40 @@
   "rpc": "https://rpc-bradbury.genlayer.com",
   "chain_id": 4221,
   "explorer": "https://explorer-bradbury.genlayer.com",
-  "architecture": "v4.2-native-gen-escrow-template-aware-eth-testnet-rails",
+  "architecture": "v4.3-genlayer-ai-with-real-l2-eth-escrow",
   "contracts": {
     "TaskManager": {
-      "address": "0xFB837f3aC53AEdf9951580D04eFb1D2aacd46959",
-      "deployment_tx": "0x260ec92850b2eec3374da50c403825df03e40f781cfd0975442bd14934f4f9cb",
-      "version": "4.2.0",
-      "authorized_submitter": "0xCCf03Aba1011CE2393eA8B762208e9bdd82123Bf",
-      "authorization_tx": "0x87371878c429f7900357d9c7789c016da1e51740aee7e3e50f999e57f92eb694",
-      "escrow": {
-        "asset": "native GEN",
+      "address": "0xF4Fa50664E9c61e3a910b796aA702BfA96C8a50D",
+      "deployment_tx": "0x2e4cf0b698a002cf500f327943326f4fcc6a74bff7f45e0e8c2a8f16d503707c",
+      "version": "4.3.0",
+      "authorized_submitter": "0xE872ab6D367669af00CCCd9295CeaA9FcCD2BFCe",
+      "authorization_tx": "0xfa7f288aea167e319608c40ba6ac91c62595e3da12733787eab15974020ed4c2",
+      "external_eth_escrow": {
+        "asset": "native ETH on selected testnet",
         "decimals": 18,
-        "payout_rule": "first submission at or above the task threshold",
-        "creator_withdrawal": "locked until winner or expiry",
-        "settlement_grace_seconds": 86400
+        "payout_rule": "GenLayer marks payout ready only when score >= task threshold; L2 escrow releases atomically",
+        "creator_withdrawal": "locked until expiry plus settlement grace",
+        "settlement_grace_seconds": 86400,
+        "accounting_rule": "GenLayer accounting is reduced only after a successful L2 settlement tx is recorded"
       },
       "write_methods": [
         {
-          "name": "create_task",
-          "payable": true,
+          "name": "create_task_with_external_eth_escrow",
           "args": [
             "title: str",
             "description: str",
             "criteria: str",
             "reward_points: uint256",
             "payout_threshold: uint256",
-            "duration_seconds: uint256"
+            "duration_seconds: uint256",
+            "task_template: str",
+            "payout_chain_id: uint256",
+            "external_escrow_contract: str",
+            "external_escrow_id: str",
+            "external_deposit_tx: str",
+            "external_amount_wei: uint256"
           ],
           "returns": "str (task_id)"
-        },
-        {
-          "name": "reopen_task",
-          "payable": true,
-          "args": [
-            "task_id: str",
-            "payout_threshold: uint256",
-            "duration_seconds: uint256"
-          ],
-          "returns": "void"
         },
         {
           "name": "refund_expired_task",
@@ -48,29 +44,23 @@
           "returns": "void"
         },
         {
+          "name": "record_external_payout",
+          "args": ["task_id: str", "settlement_tx: str"],
+          "returns": "void"
+        },
+        {
+          "name": "record_external_refund",
+          "args": ["task_id: str", "settlement_tx: str"],
+          "returns": "void"
+        },
+        {
           "name": "record_submission",
-          "args": [
-            "task_id: str",
-            "sub_id: str",
-            "worker: str",
-            "submitted_at: uint256"
-          ],
+          "args": ["task_id: str", "sub_id: str", "worker: str", "submitted_at: uint256"],
           "returns": "void"
         },
         {
           "name": "record_evaluation",
-          "args": [
-            "task_id: str",
-            "sub_id: str",
-            "worker: str",
-            "score: uint256",
-            "points_awarded: uint256"
-          ],
-          "returns": "void"
-        },
-        {
-          "name": "record_withdrawal",
-          "args": ["task_id: str", "sub_id: str"],
+          "args": ["task_id: str", "sub_id: str", "worker: str", "score: uint256", "points_awarded: uint256"],
           "returns": "void"
         },
         {
@@ -80,155 +70,68 @@
         }
       ],
       "view_methods": [
-        {
-          "name": "get_task",
-          "args": ["task_id: str"],
-          "returns": "str (JSON)"
-        },
-        {
-          "name": "get_task_escrow",
-          "args": ["task_id: str"],
-          "returns": "str (JSON)"
-        },
-        {
-          "name": "get_task_stats",
-          "args": ["task_id: str"],
-          "returns": "str (JSON)"
-        },
-        {
-          "name": "get_platform_stats",
-          "args": [],
-          "returns": "str (JSON)"
-        },
-        {
-          "name": "get_task_count",
-          "args": [],
-          "returns": "uint256"
-        },
-        {
-          "name": "get_contract_balance",
-          "args": [],
-          "returns": "uint256"
-        }
+        { "name": "get_version", "args": [], "returns": "str" },
+        { "name": "get_task", "args": ["task_id: str"], "returns": "str (JSON)" },
+        { "name": "get_task_escrow", "args": ["task_id: str"], "returns": "str (JSON)" },
+        { "name": "get_task_stats", "args": ["task_id: str"], "returns": "str (JSON)" },
+        { "name": "get_platform_stats", "args": [], "returns": "str (JSON)" },
+        { "name": "get_supported_payout_networks", "args": [], "returns": "str (JSON)" },
+        { "name": "get_supported_task_templates", "args": [], "returns": "str (JSON)" },
+        { "name": "get_authorized_submitter", "args": [], "returns": "str" }
       ]
     },
     "ProofOfImpact": {
-      "address": "0xCCf03Aba1011CE2393eA8B762208e9bdd82123Bf",
-      "deployment_tx": "0x199dfe1789f32e1c00c3aed5ade45b38916b09646c92ff044a93f8195fc629ca",
-      "version": "4.2.0",
-      "evidence_consensus": "strict_eq independent URL fetch followed by template-aware prompt_comparative scoring",
+      "address": "0xE872ab6D367669af00CCCd9295CeaA9FcCD2BFCe",
+      "deployment_tx": "0x2a6d812afb118b7c4ed5adc37bdee06bcdafe9ea55da68144ee28d0f21c0319a",
+      "version": "4.3.0",
+      "evidence_consensus": "independent URL fetch followed by template-aware prompt_comparative scoring with exact payout threshold agreement",
       "constructor_args": [
         "task_manager_address: Address",
         "leaderboard_address: Address"
       ],
       "write_methods": [
-        {
-          "name": "submit_work",
-          "args": ["task_id: str", "work_url: str", "description: str"],
-          "returns": "str (sub_id)"
-        },
-        {
-          "name": "evaluate_submission",
-          "args": ["sub_id: str"],
-          "returns": "str (AI JSON result)"
-        },
-        {
-          "name": "retry_task_settlement",
-          "args": ["sub_id: str"],
-          "returns": "void"
-        },
-        {
-          "name": "withdraw_submission",
-          "args": ["sub_id: str"],
-          "returns": "void"
-        },
-        {
-          "name": "set_task_manager_contract",
-          "args": ["task_manager_address: Address"],
-          "returns": "void"
-        },
-        {
-          "name": "set_leaderboard_contract",
-          "args": ["leaderboard_address: Address"],
-          "returns": "void"
-        }
+        { "name": "submit_work", "args": ["task_id: str", "work_url: str", "description: str"], "returns": "str (sub_id)" },
+        { "name": "evaluate_submission", "args": ["sub_id: str"], "returns": "str (AI JSON result)" },
+        { "name": "retry_task_settlement", "args": ["sub_id: str"], "returns": "void" },
+        { "name": "withdraw_submission", "args": ["sub_id: str"], "returns": "void" }
       ],
       "view_methods": [
-        {
-          "name": "get_task",
-          "args": ["task_id: str"],
-          "returns": "str (proxied JSON from TaskManager)"
-        },
-        {
-          "name": "get_submission",
-          "args": ["sub_id: str"],
-          "returns": "str (JSON)"
-        },
-        {
-          "name": "get_submission_evaluation",
-          "args": ["sub_id: str"],
-          "returns": "str (JSON)"
-        },
-        {
-          "name": "can_submit",
-          "args": ["task_id: str", "worker: str"],
-          "returns": "str (JSON)"
-        },
-        {
-          "name": "get_platform_stats",
-          "args": [],
-          "returns": "str (JSON)"
-        }
+        { "name": "get_version", "args": [], "returns": "str" },
+        { "name": "get_task_manager_contract", "args": [], "returns": "str" },
+        { "name": "get_leaderboard_contract", "args": [], "returns": "str" },
+        { "name": "get_task", "args": ["task_id: str"], "returns": "str (proxied JSON from TaskManager)" },
+        { "name": "get_submission", "args": ["sub_id: str"], "returns": "str (JSON)" },
+        { "name": "get_submission_evaluation", "args": ["sub_id: str"], "returns": "str (JSON)" }
       ]
     },
     "GlobalLeaderboard": {
       "address": "0x552FA16bD9F9b9Bd2F6fDa577657033F01d505fB",
       "deployment_tx": "0x25caf03e928242ed11e3382002e6d5d72c32d4f5880f804b5f0fdb0f437fe593",
-      "authorized_writer": "0xCCf03Aba1011CE2393eA8B762208e9bdd82123Bf",
-      "authorization_tx": "0x3ca16e6590a3ff1c9222ce97c089be76ac0736f650bede13f52c723787d0d2fe",
+      "authorized_writer": "0xE872ab6D367669af00CCCd9295CeaA9FcCD2BFCe",
+      "authorization_tx": "0x0a6d54be1b2ec85edddb9b7211e98e4ca1adf2539074d847978f2ee4155153ab",
       "write_methods": [
-        {
-          "name": "set_authorized_writer",
-          "args": ["writer: Address"],
-          "returns": "void"
-        },
-        {
-          "name": "record_score",
-          "args": ["contributor: str", "score: uint256"],
-          "returns": "void"
-        },
-        {
-          "name": "set_score",
-          "args": ["contributor: str", "score: uint256"],
-          "returns": "void"
-        }
+        { "name": "set_authorized_writer", "args": ["writer: Address"], "returns": "void" },
+        { "name": "record_score", "args": ["contributor: str", "score: uint256"], "returns": "void" }
       ],
       "view_methods": [
-        {
-          "name": "get_all_entries",
-          "args": [],
-          "returns": "str (JSON)"
-        },
-        {
-          "name": "get_top",
-          "args": ["n: uint256"],
-          "returns": "str (JSON)"
-        },
-        {
-          "name": "get_authorized_writer",
-          "args": [],
-          "returns": "str"
-        }
+        { "name": "get_all_entries", "args": [], "returns": "str (JSON)" },
+        { "name": "get_top", "args": ["n: uint256"], "returns": "str (JSON)" },
+        { "name": "get_authorized_writer", "args": [], "returns": "str" }
       ]
-    }
-  },
-  "verified_transactions": {
-    "escrow_smoke_test": {
-      "tx": "0xe5fd2c69f520988b0918eb431ad7a547451642c725dcfe404a94dd218705440c",
-      "task_id": "task-0",
-      "deposit_wei": "1000000000000000",
-      "deposit_gen": "0.001",
-      "contract_balance_wei_after": "1000000000000000"
+    },
+    "L2TaskEscrow": {
+      "address": "0xc49fD9D21Deb2f5cbc377Aa21980E3856D4A6931",
+      "networks": {
+        "11155111": { "name": "Ethereum Sepolia", "tx": "0xec974fe6af6c6f8ee5ad1aca3e32acdab351d2fe6e5ee18e4ad7e7be0ccb69af" },
+        "84532": { "name": "Base Sepolia", "tx": "0xd863785a07576a8a75ee74019f56b8eef3bbc99c64f7efd127d02255af646a9f" },
+        "11155420": { "name": "OP Sepolia", "tx": "0xc3b70d3b59bbb163f3acd1c59416b306656fa89208ff9f8136cbc267c6f91e07" },
+        "421614": { "name": "Arbitrum Sepolia", "tx": "0x8d7186c50c7dfa272c38096ae5ac93aca8a8511ed0a98c6e7674c8a153a269e0" }
+      },
+      "write_methods": [
+        { "name": "createEscrow", "args": ["escrowId: bytes32", "refundAfter: uint64"], "payable": true },
+        { "name": "release", "args": ["escrowId: bytes32", "winner: address", "settlementRef: bytes32", "score: uint16", "threshold: uint16"] },
+        { "name": "refund", "args": ["escrowId: bytes32"] }
+      ]
     }
   }
 }

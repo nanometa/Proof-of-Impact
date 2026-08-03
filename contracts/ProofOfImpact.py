@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import json
 
 
-CONTRACT_VERSION = "4.2.0"
+CONTRACT_VERSION = "4.3.0"
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
 TASK_OPEN = "open"
