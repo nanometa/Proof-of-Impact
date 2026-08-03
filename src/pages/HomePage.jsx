@@ -159,9 +159,16 @@ export default function HomePage() {
                 <p className="text-sm text-white/60 line-clamp-2 mb-4 leading-relaxed font-sans">{task.description}</p>
 
                 <div className="mb-4">
-                  <span className="inline-block text-[11px] px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white/70 font-medium truncate max-w-full font-sans">
-                    {task.criteria}
-                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="inline-block text-[11px] px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white/70 font-medium truncate max-w-full font-sans">
+                      {task.template_label || 'Code delivery'}
+                    </span>
+                    {task.payout_network_name && (
+                      <span className="inline-block text-[11px] px-3 py-1 rounded-full bg-[#0ea5e9]/10 border border-[#0ea5e9]/30 text-[#0ea5e9] font-medium truncate max-w-full font-sans">
+                        {task.payout_network_name} {task.payout_token_symbol || 'ETH'}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-3 text-[11px] mb-3">

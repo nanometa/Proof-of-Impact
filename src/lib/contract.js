@@ -10,11 +10,14 @@ import { createAccount, createClient } from 'genlayer-js'
 import { testnetBradbury } from 'genlayer-js/chains'
 import { custom, parseUnits } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
+import { ACTIVE_DEPLOYMENT } from './deployments'
 
 const ADDRESS_PATTERN = /^0x[a-fA-F0-9]{40}$/
 
-function getConfiguredAddress(envName) {
+function getConfiguredAddress(envName, fallbackAddress) {
   const value = String(import.meta.env[envName] || '').trim()
+  if (ADDRESS_PATTERN.test(value)) return value
+  if (ADDRESS_PATTERN.test(fallbackAddress)) return fallbackAddress
   if (!ADDRESS_PATTERN.test(value)) {
     throw new Error(
       `${envName} is missing or invalid. Copy .env.example to .env.local and configure the Bradbury contract address.`,
@@ -23,9 +26,18 @@ function getConfiguredAddress(envName) {
   return value
 }
 
-const CONTRACT_ADDRESS = getConfiguredAddress('VITE_PROOF_OF_IMPACT_ADDRESS')
-const TASK_MANAGER_CONTRACT = getConfiguredAddress('VITE_TASK_MANAGER_ADDRESS')
-const LEADERBOARD_CONTRACT = getConfiguredAddress('VITE_GLOBAL_LEADERBOARD_ADDRESS')
+const CONTRACT_ADDRESS = getConfiguredAddress(
+  'VITE_PROOF_OF_IMPACT_ADDRESS',
+  ACTIVE_DEPLOYMENT.proofOfImpact,
+)
+const TASK_MANAGER_CONTRACT = getConfiguredAddress(
+  'VITE_TASK_MANAGER_ADDRESS',
+  ACTIVE_DEPLOYMENT.taskManager,
+)
+const LEADERBOARD_CONTRACT = getConfiguredAddress(
+  'VITE_GLOBAL_LEADERBOARD_ADDRESS',
+  ACTIVE_DEPLOYMENT.globalLeaderboard,
+)
 
 const EXPLORER_BASE = 'https://explorer-bradbury.genlayer.com/tx'
 const DATA_MODE = 'genlayer'
@@ -164,6 +176,8 @@ export async function createTask(
   bountyGen,
   payoutThreshold,
   durationSeconds,
+  taskTemplate = 'code',
+  payoutChainId = 11155111,
 ) {
   ensureConnected()
   const client = getSigningClient()
@@ -174,7 +188,7 @@ export async function createTask(
     clearReadCache()
     const hash = await client.writeContract({
       address: taskAddress,
-      functionName: 'create_task',
+      functionName: 'create_task_with_profile',
       args: [
         title,
         description,
@@ -182,6 +196,8 @@ export async function createTask(
         Number(rewardPoints),
         Number(payoutThreshold),
         Number(durationSeconds),
+        taskTemplate,
+        Number(payoutChainId),
       ],
       value: bountyWei,
     })

@@ -150,6 +150,25 @@ export default function TaskPage() {
           <p className="text-sm text-white/80 font-sans">{task.criteria}</p>
         </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+          <div className="bg-white/[0.03] rounded-xl p-5 border border-white/10">
+            <p className="text-[11px] text-white/40 uppercase tracking-wider mb-2 font-semibold font-sans">Review Template</p>
+            <p className="text-sm text-white font-semibold">{task.template_label || 'Code delivery'}</p>
+            <p className="text-xs text-white/55 mt-2 leading-relaxed">
+              {task.evidence_requirements || 'Repository URL, commits or release notes, tests, documentation, and a short delivery summary.'}
+            </p>
+          </div>
+          <div className="bg-white/[0.03] rounded-xl p-5 border border-white/10">
+            <p className="text-[11px] text-white/40 uppercase tracking-wider mb-2 font-semibold font-sans">ETH Testnet Rail</p>
+            <p className="text-sm text-white font-semibold">
+              {task.payout_network_name || 'GenLayer Bradbury'} · {task.payout_token_symbol || 'GEN'}
+            </p>
+            <p className="text-xs text-white/55 mt-2 leading-relaxed">
+              Chain ID {task.payout_chain_id || 4221}. GenLayer records the canonical AI verdict and escrow state; this rail identifies the selected native testnet payout network.
+            </p>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-y-4 gap-x-6 py-5 mb-5 border-y border-white/10">
           <div>
             <p className="text-[11px] text-white/35 uppercase mb-1">Escrow</p>

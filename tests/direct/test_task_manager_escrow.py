@@ -40,6 +40,24 @@ def create_funded_task(direct_vm, manager, creator, bounty=BOUNTY):
     return task_id
 
 
+def create_profiled_task(direct_vm, manager, creator, template="research", chain_id=84532):
+    direct_vm.sender = creator
+    direct_vm.deal(creator, 10 * GEN)
+    direct_vm.value = BOUNTY
+    task_id = manager.create_task_with_profile(
+        "Profiled task",
+        "Deliver evidence using the selected category workflow.",
+        "The fetched artifact must satisfy the selected template requirements.",
+        100,
+        70,
+        ONE_HOUR,
+        template,
+        chain_id,
+    )
+    direct_vm.value = 0
+    return task_id
+
+
 def task_json(manager, task_id):
     return json.loads(manager.get_task(task_id))
 
@@ -92,6 +110,66 @@ def test_creation_locks_exact_bounty_and_terms(
     assert escrow["settled"] is False
     stats = json.loads(manager.get_platform_stats())
     assert stats["total_locked_wei"] == str(BOUNTY)
+
+
+def test_profiled_task_records_template_and_eth_testnet_rail(
+    direct_vm,
+    direct_deploy,
+    direct_alice,
+):
+    manager = deploy_manager(direct_vm, direct_deploy, direct_alice)
+    task_id = create_profiled_task(direct_vm, manager, direct_alice)
+
+    task = task_json(manager, task_id)
+    networks = json.loads(manager.get_supported_payout_networks())
+    templates = json.loads(manager.get_task_templates())
+
+    assert task["task_template"] == "research"
+    assert task["template_label"] == "Research"
+    assert "methodology" in task["evidence_requirements"].lower()
+    assert task["payout_chain_id"] == 84532
+    assert task["payout_network_name"] == "Base Sepolia"
+    assert task["payout_token_symbol"] == "ETH"
+    assert task["payout_rail_type"] == "native_testnet_eth"
+    assert any(row["chain_id"] == 421614 for row in networks)
+    assert any(row["key"] == "community" for row in templates)
+
+
+def test_unsupported_template_or_network_is_rejected(
+    direct_vm,
+    direct_deploy,
+    direct_alice,
+):
+    manager = deploy_manager(direct_vm, direct_deploy, direct_alice)
+    direct_vm.sender = direct_alice
+    direct_vm.deal(direct_alice, 10 * GEN)
+    direct_vm.value = BOUNTY
+
+    with direct_vm.expect_revert("unsupported task template"):
+        manager.create_task_with_profile(
+            "Bad template",
+            "This task should fail because the template is not supported.",
+            "The contract should reject unknown template keys.",
+            100,
+            70,
+            ONE_HOUR,
+            "anything",
+            84532,
+        )
+
+    with direct_vm.expect_revert("unsupported payout network"):
+        manager.create_task_with_profile(
+            "Bad network",
+            "This task should fail because the payout network is not supported.",
+            "The contract should reject unknown chain IDs.",
+            100,
+            70,
+            ONE_HOUR,
+            "code",
+            1,
+        )
+
+    direct_vm.value = 0
 
 
 def test_creator_cannot_withdraw_bounty_early(

@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import json
 
 
-CONTRACT_VERSION = "4.0.0"
+CONTRACT_VERSION = "4.2.0"
 
 TASK_OPEN = "open"
 TASK_CLOSED = "closed"
@@ -25,11 +25,17 @@ MAX_DESCRIPTION_LENGTH = 2000
 MAX_CRITERIA_LENGTH = 2000
 MAX_CANCEL_REASON_LENGTH = 300
 MAX_REWARD_POINTS = 1000000
+MAX_TEMPLATE_KEY_LENGTH = 32
 MIN_PAYOUT_THRESHOLD = 50
 MAX_PAYOUT_THRESHOLD = 100
 MIN_DURATION_SECONDS = 3600
 MAX_DURATION_SECONDS = 30 * 24 * 60 * 60
 SETTLEMENT_GRACE_SECONDS = 24 * 60 * 60
+BRADBURY_CHAIN_ID = 4221
+SEPOLIA_CHAIN_ID = 11155111
+BASE_SEPOLIA_CHAIN_ID = 84532
+OP_SEPOLIA_CHAIN_ID = 11155420
+ARBITRUM_SEPOLIA_CHAIN_ID = 421614
 
 
 @gl.evm.contract_interface
@@ -76,6 +82,106 @@ def append_json_array(raw: str, value: str) -> str:
     if value not in values:
         values.append(value)
     return json.dumps(values)
+
+
+def template_profile(template_key: str) -> dict:
+    key = str(template_key or "").strip().lower()
+    if not key:
+        key = "code"
+    if len(key) > MAX_TEMPLATE_KEY_LENGTH:
+        raise gl.vm.UserError("task template is too long")
+
+    if key == "code":
+        return {
+            "key": "code",
+            "label": "Code delivery",
+            "evidence_requirements": "Repository URL, commits or release notes, tests, documentation, and a short delivery summary.",
+            "review_focus": "Correctness, runnable implementation, tests, maintainability, and alignment with the brief.",
+            "risk_flags": "placeholder repository, missing tests, copied code, broken build, incomplete scope",
+        }
+    if key == "research":
+        return {
+            "key": "research",
+            "label": "Research",
+            "evidence_requirements": "Public report, cited sources, methodology, dataset or notes, and reproducible conclusions.",
+            "review_focus": "Source quality, methodology, factual support, clarity, and relevance to the requested question.",
+            "risk_flags": "uncited claims, weak methodology, hallucinated sources, unverifiable dataset, off-topic result",
+        }
+    if key == "design":
+        return {
+            "key": "design",
+            "label": "Design",
+            "evidence_requirements": "Design file or screenshots, brief mapping, exported assets, and implementation notes.",
+            "review_focus": "Brief fit, visual consistency, usability, completeness, and asset handoff quality.",
+            "risk_flags": "template-only work, missing source file, poor accessibility, incomplete states, unrelated style",
+        }
+    if key == "community":
+        return {
+            "key": "community",
+            "label": "Community",
+            "evidence_requirements": "Campaign links, metrics, screenshots or dashboards, audience proof, and anti-spam context.",
+            "review_focus": "Authentic reach, engagement quality, anti-spam signals, deliverable match, and measurable impact.",
+            "risk_flags": "bot activity, recycled post, fake metrics, unverifiable audience, low-effort engagement",
+        }
+    if key == "content":
+        return {
+            "key": "content",
+            "label": "Content",
+            "evidence_requirements": "Published URL, draft or source material, target audience, distribution proof, and ownership note.",
+            "review_focus": "Accuracy, originality, audience fit, clarity, publication quality, and alignment with the brief.",
+            "risk_flags": "plagiarism, AI slop, unpublished draft, factual errors, missing distribution proof",
+        }
+    if key == "data":
+        return {
+            "key": "data",
+            "label": "Data",
+            "evidence_requirements": "Dataset, schema, cleaning notes, validation script or checks, and source provenance.",
+            "review_focus": "Data quality, reproducibility, provenance, schema clarity, validation coverage, and usefulness.",
+            "risk_flags": "dirty dataset, missing schema, unverifiable source, no validation, privacy risk",
+        }
+
+    raise gl.vm.UserError("unsupported task template")
+
+
+def payout_network_profile(chain_id: u256) -> dict:
+    value = int(chain_id)
+    if value == BRADBURY_CHAIN_ID:
+        return {
+            "chain_id": BRADBURY_CHAIN_ID,
+            "name": "GenLayer Bradbury",
+            "native_token": "GEN",
+            "rail_type": "genlayer_native_escrow",
+        }
+    if value == SEPOLIA_CHAIN_ID:
+        return {
+            "chain_id": SEPOLIA_CHAIN_ID,
+            "name": "Ethereum Sepolia",
+            "native_token": "ETH",
+            "rail_type": "native_testnet_eth",
+        }
+    if value == BASE_SEPOLIA_CHAIN_ID:
+        return {
+            "chain_id": BASE_SEPOLIA_CHAIN_ID,
+            "name": "Base Sepolia",
+            "native_token": "ETH",
+            "rail_type": "native_testnet_eth",
+        }
+    if value == OP_SEPOLIA_CHAIN_ID:
+        return {
+            "chain_id": OP_SEPOLIA_CHAIN_ID,
+            "name": "OP Sepolia",
+            "native_token": "ETH",
+            "rail_type": "native_testnet_eth",
+        }
+    if value == ARBITRUM_SEPOLIA_CHAIN_ID:
+        return {
+            "chain_id": ARBITRUM_SEPOLIA_CHAIN_ID,
+            "name": "Arbitrum Sepolia",
+            "native_token": "ETH",
+            "rail_type": "native_testnet_eth",
+        }
+
+    raise gl.vm.UserError("unsupported payout network")
 
 
 class TaskManager(gl.Contract):
@@ -326,6 +432,8 @@ class TaskManager(gl.Contract):
         payout_threshold: u256,
         duration_seconds: u256,
         bounty_wei: u256,
+        task_template: str,
+        payout_chain_id: u256,
     ) -> str:
         clean_title = validate_text(title, "title", MAX_TITLE_LENGTH)
         clean_description = validate_text(
@@ -334,6 +442,8 @@ class TaskManager(gl.Contract):
             MAX_DESCRIPTION_LENGTH,
         )
         clean_criteria = validate_text(criteria, "criteria", MAX_CRITERIA_LENGTH)
+        template = template_profile(task_template)
+        payout_network = payout_network_profile(payout_chain_id)
 
         if reward_points <= u256(0):
             raise gl.vm.UserError("reward_points must be greater than 0")
@@ -365,6 +475,15 @@ class TaskManager(gl.Contract):
             "title": clean_title,
             "description": clean_description,
             "criteria": clean_criteria,
+            "task_template": template["key"],
+            "template_label": template["label"],
+            "evidence_requirements": template["evidence_requirements"],
+            "review_focus": template["review_focus"],
+            "template_risk_flags": template["risk_flags"],
+            "payout_chain_id": int(payout_network["chain_id"]),
+            "payout_network_name": payout_network["name"],
+            "payout_token_symbol": payout_network["native_token"],
+            "payout_rail_type": payout_network["rail_type"],
             "reward_points": int(reward_points),
             "status": TASK_OPEN,
             "creator": normalized_creator,
@@ -416,6 +535,33 @@ class TaskManager(gl.Contract):
             payout_threshold,
             duration_seconds,
             gl.message.value,
+            "code",
+            u256(BRADBURY_CHAIN_ID),
+        )
+
+    @gl.public.write.payable
+    def create_task_with_profile(
+        self,
+        title: str,
+        description: str,
+        criteria: str,
+        reward_points: u256,
+        payout_threshold: u256,
+        duration_seconds: u256,
+        task_template: str,
+        payout_chain_id: u256,
+    ) -> str:
+        return self._create_task_for(
+            self._sender(),
+            title,
+            description,
+            criteria,
+            reward_points,
+            payout_threshold,
+            duration_seconds,
+            gl.message.value,
+            task_template,
+            payout_chain_id,
         )
 
     @gl.public.write.payable
@@ -439,6 +585,35 @@ class TaskManager(gl.Contract):
             payout_threshold,
             duration_seconds,
             gl.message.value,
+            "code",
+            u256(BRADBURY_CHAIN_ID),
+        )
+
+    @gl.public.write.payable
+    def create_task_for_with_profile(
+        self,
+        creator: str,
+        title: str,
+        description: str,
+        criteria: str,
+        reward_points: u256,
+        payout_threshold: u256,
+        duration_seconds: u256,
+        task_template: str,
+        payout_chain_id: u256,
+    ) -> str:
+        self._require_submitter()
+        return self._create_task_for(
+            creator,
+            title,
+            description,
+            criteria,
+            reward_points,
+            payout_threshold,
+            duration_seconds,
+            gl.message.value,
+            task_template,
+            payout_chain_id,
         )
 
     @gl.public.write
@@ -702,6 +877,33 @@ class TaskManager(gl.Contract):
     @gl.public.view
     def get_task(self, task_id: str) -> str:
         return self.task_storage[task_id] if task_id in self.task_storage else ""
+
+    @gl.public.view
+    def get_task_templates(self) -> str:
+        return json.dumps(
+            [
+                template_profile("code"),
+                template_profile("research"),
+                template_profile("design"),
+                template_profile("community"),
+                template_profile("content"),
+                template_profile("data"),
+            ],
+            sort_keys=True,
+        )
+
+    @gl.public.view
+    def get_supported_payout_networks(self) -> str:
+        return json.dumps(
+            [
+                payout_network_profile(u256(BRADBURY_CHAIN_ID)),
+                payout_network_profile(u256(SEPOLIA_CHAIN_ID)),
+                payout_network_profile(u256(BASE_SEPOLIA_CHAIN_ID)),
+                payout_network_profile(u256(OP_SEPOLIA_CHAIN_ID)),
+                payout_network_profile(u256(ARBITRUM_SEPOLIA_CHAIN_ID)),
+            ],
+            sort_keys=True,
+        )
 
     @gl.public.view
     def get_task_submissions(self, task_id: str) -> str:

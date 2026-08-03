@@ -3,14 +3,14 @@
   "rpc": "https://rpc-bradbury.genlayer.com",
   "chain_id": 4221,
   "explorer": "https://explorer-bradbury.genlayer.com",
-  "architecture": "v4-native-gen-escrow-independent-evidence",
+  "architecture": "v4.2-native-gen-escrow-template-aware-eth-testnet-rails",
   "contracts": {
     "TaskManager": {
-      "address": "0xbDbC9FEdBac47329D02fFA1Edffc7179d11e5c79",
-      "deployment_tx": "0x99ddbf26dc99c811e7f13e42a4a521a73fa28e2fe8495274f5f3d3d790db2691",
-      "version": "4.0.0",
-      "authorized_submitter": "0xDD253140f2dfe04f8c6B2e5150De72F3327fb73D",
-      "authorization_tx": "0xe6e226a6f1fac1df9d568acec6da50fe21b1b81743f2c8f72e3523fae264332b",
+      "address": "0xFB837f3aC53AEdf9951580D04eFb1D2aacd46959",
+      "deployment_tx": "0x260ec92850b2eec3374da50c403825df03e40f781cfd0975442bd14934f4f9cb",
+      "version": "4.2.0",
+      "authorized_submitter": "0xCCf03Aba1011CE2393eA8B762208e9bdd82123Bf",
+      "authorization_tx": "0x87371878c429f7900357d9c7789c016da1e51740aee7e3e50f999e57f92eb694",
       "escrow": {
         "asset": "native GEN",
         "decimals": 18,
@@ -113,10 +113,10 @@
       ]
     },
     "ProofOfImpact": {
-      "address": "0xDD253140f2dfe04f8c6B2e5150De72F3327fb73D",
-      "deployment_tx": "0xa78c4f4e760374bac36ef4202bda0bbc04df71874f7d9fee2c8ef7b1b57c673c",
-      "version": "4.0.0",
-      "evidence_consensus": "strict_eq independent URL fetch followed by prompt_comparative scoring",
+      "address": "0xCCf03Aba1011CE2393eA8B762208e9bdd82123Bf",
+      "deployment_tx": "0x199dfe1789f32e1c00c3aed5ade45b38916b09646c92ff044a93f8195fc629ca",
+      "version": "4.2.0",
+      "evidence_consensus": "strict_eq independent URL fetch followed by template-aware prompt_comparative scoring",
       "constructor_args": [
         "task_manager_address: Address",
         "leaderboard_address: Address"
@@ -182,10 +182,10 @@
       ]
     },
     "GlobalLeaderboard": {
-      "address": "0xc335b7326D70067373b7c8c88f42803BcDcC1D5C",
-      "deployment_tx": "0x4d86e46fdedfd082f222baf02159ff5514e438bb1f1e76c167d3018f80851d4f",
-      "authorized_writer": "0xDD253140f2dfe04f8c6B2e5150De72F3327fb73D",
-      "authorization_tx": "0x28354a94af2a25a70835b12c1d14edfd5741f6b52431b3be409ef051674eacc3",
+      "address": "0x552FA16bD9F9b9Bd2F6fDa577657033F01d505fB",
+      "deployment_tx": "0x25caf03e928242ed11e3382002e6d5d72c32d4f5880f804b5f0fdb0f437fe593",
+      "authorized_writer": "0xCCf03Aba1011CE2393eA8B762208e9bdd82123Bf",
+      "authorization_tx": "0x3ca16e6590a3ff1c9222ce97c089be76ac0736f650bede13f52c723787d0d2fe",
       "write_methods": [
         {
           "name": "set_authorized_writer",

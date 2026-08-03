@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ACTIVE_DEPLOYMENT } from '../lib/deployments'
 
-const CONTRACT_ADDRESS = '0x21B23594a213689413DeEe19687642fb6111BC77'
+const CONTRACT_ADDRESS = ACTIVE_DEPLOYMENT.proofOfImpact
 
 const ecosystemLogos = [
   { name: 'ZKsync', letter: 'Z', url: 'https://zksync.io' },
@@ -61,6 +62,9 @@ const proofFields = [
   'Payout decision bound to the task threshold',
 ]
 
+const taskTemplates = ['Code', 'Research', 'Design', 'Community', 'Content', 'Data']
+const payoutRails = ['Sepolia', 'Base Sepolia', 'OP Sepolia', 'Arbitrum Sepolia']
+
 function ArrowIcon() {
   return <span aria-hidden="true">↗</span>
 }
@@ -106,7 +110,7 @@ export default function LandingPage() {
             <div className="landing-eyebrow mb-5">
               <span className="landing-status-dot" />
               Live on GenLayer Bradbury Testnet
-              <span className="landing-version">v4.1.0</span>
+              <span className="landing-version">v{ACTIVE_DEPLOYMENT.version}</span>
             </div>
 
             <h1 className="font-heading text-[52px] font-medium leading-[0.96] tracking-[-0.055em] sm:text-[70px] lg:text-[84px]">
@@ -144,6 +148,9 @@ export default function LandingPage() {
               </span>
               <span className="flex items-center gap-2">
                 <CheckIcon /> Onchain reputation
+              </span>
+              <span className="flex items-center gap-2">
+                <CheckIcon /> Template-based review
               </span>
             </div>
           </div>
@@ -300,6 +307,53 @@ export default function LandingPage() {
       </section>
 
       <section className="px-5 pb-14 sm:px-8 lg:px-12 lg:pb-16">
+        <div className="mx-auto grid max-w-[1180px] gap-5 lg:grid-cols-[1fr_0.9fr]">
+          <article className="landing-feature-card">
+            <span className="landing-card-index">03 / Specialized review</span>
+            <div>
+              <h3 className="font-heading text-3xl font-medium tracking-[-0.035em]">
+                Each task now carries its own review template.
+              </h3>
+              <p className="mt-4 max-w-xl text-base leading-7 text-foreground/58">
+                Proof of Impact is no longer a single generic proof-of-work judge.
+                Creators choose a template, and validators evaluate against that
+                category&apos;s evidence requirements, review focus, and risk flags.
+              </p>
+            </div>
+            <div className="mt-6 flex flex-wrap gap-2">
+              {taskTemplates.map((item) => (
+                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-foreground/70" key={item}>
+                  {item}
+                </span>
+              ))}
+            </div>
+          </article>
+
+          <article className="landing-feature-card">
+            <span className="landing-card-index">04 / ETH testnet rails</span>
+            <div>
+              <h3 className="font-heading text-3xl font-medium tracking-[-0.035em]">
+                Network choice is recorded with every task.
+              </h3>
+              <p className="mt-4 max-w-xl text-base leading-7 text-foreground/58">
+                The GenLayer verdict remains canonical, while each task records a
+                selected native ETH testnet rail for cross-network payout readiness.
+                This keeps the current escrow honest while expanding beyond a
+                single-network workflow.
+              </p>
+            </div>
+            <div className="mt-6 grid grid-cols-2 gap-2">
+              {payoutRails.map((item) => (
+                <span className="rounded-2xl border border-[#0ea5e9]/25 bg-[#0ea5e9]/10 px-3 py-2 text-xs font-semibold text-[#0ea5e9]" key={item}>
+                  {item} ETH
+                </span>
+              ))}
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section className="px-5 pb-14 sm:px-8 lg:px-12 lg:pb-16">
         <div className="landing-threshold-section mx-auto grid max-w-[1180px] gap-7 overflow-hidden rounded-[26px] p-6 sm:p-7 lg:grid-cols-[1fr_0.9fr] lg:p-8">
           <div>
             <p className="landing-section-label">Threshold-bound consensus</p>
@@ -362,7 +416,7 @@ export default function LandingPage() {
           <div className="landing-contract mx-auto mt-6 max-w-2xl">
             <div className="min-w-0 text-left">
               <span className="text-xs uppercase tracking-[0.18em] text-foreground/35">
-                ProofOfImpact v4.1.0
+                ProofOfImpact v{ACTIVE_DEPLOYMENT.version}
               </span>
               <p className="mt-2 truncate font-mono text-sm text-foreground/80 sm:text-base">
                 {CONTRACT_ADDRESS}

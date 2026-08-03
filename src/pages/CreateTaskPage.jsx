@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { createTask, getTaskCount, waitForTaskCount } from '../lib/contract'
 import { useToast } from '../context/ToastContext'
+import { PAYOUT_NETWORKS, TASK_TEMPLATES, getTaskTemplate } from '../lib/taskProfiles'
 import Spinner from '../components/Spinner'
 
 export default function CreateTaskPage() {
@@ -11,6 +12,8 @@ export default function CreateTaskPage() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [criteria, setCriteria] = useState('')
+  const [taskTemplate, setTaskTemplate] = useState('code')
+  const [payoutChainId, setPayoutChainId] = useState(String(PAYOUT_NETWORKS[0].chainId))
   const [rewardPoints, setRewardPoints] = useState('100')
   const [bountyGen, setBountyGen] = useState('0.01')
   const [payoutThreshold, setPayoutThreshold] = useState('70')
@@ -30,6 +33,9 @@ export default function CreateTaskPage() {
     const bounty = Number(bountyGen)
     const threshold = Number(payoutThreshold)
     const days = Number(durationDays)
+    const selectedNetwork = PAYOUT_NETWORKS.find(
+      (network) => network.chainId === Number(payoutChainId),
+    )
 
     if (!Number.isInteger(points) || points < 1) {
       addToast({ type: 'error', message: 'Reward points must be a positive integer' })
@@ -47,9 +53,13 @@ export default function CreateTaskPage() {
       addToast({ type: 'error', message: 'The task duration must be between 1 and 30 days' })
       return
     }
+    if (!selectedNetwork) {
+      addToast({ type: 'error', message: 'Choose a supported ETH testnet rail' })
+      return
+    }
 
     setLoading(true)
-    setSubmitStatus('Locking GEN bounty on-chain...')
+    setSubmitStatus(`Locking GEN bounty and recording ${selectedNetwork.name} ETH rail...`)
     try {
       const previousCount = await getTaskCount().catch(() => 0)
       const result = await createTask(
@@ -60,6 +70,8 @@ export default function CreateTaskPage() {
         bountyGen,
         threshold,
         days * 24 * 60 * 60,
+        taskTemplate,
+        Number(payoutChainId),
       )
       if (result.hash) {
         setSubmitStatus('Syncing on-chain task...')
@@ -104,6 +116,30 @@ export default function CreateTaskPage() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
+            <label className="block text-xs text-white/40 uppercase tracking-wider mb-2 font-semibold font-sans">Review Template</label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {TASK_TEMPLATES.map((template) => (
+                <button
+                  type="button"
+                  key={template.key}
+                  onClick={() => {
+                    setTaskTemplate(template.key)
+                    if (!criteria.trim()) setCriteria(template.criteria)
+                  }}
+                  className={`px-3 py-2 rounded-xl border text-left transition-all ${
+                    taskTemplate === template.key
+                      ? 'bg-[#8B5CF6]/15 border-[#8B5CF6]/60 text-white'
+                      : 'bg-white/5 border-white/10 text-white/55 hover:text-white hover:border-white/25'
+                  }`}
+                >
+                  <span className="block text-sm font-semibold">{template.shortLabel}</span>
+                  <span className="block text-[11px] mt-1 text-white/40 line-clamp-2">{template.focus}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
             <label className="block text-xs text-white/40 uppercase tracking-wider mb-2 font-semibold font-sans">Title</label>
             <input
               type="text"
@@ -134,6 +170,18 @@ export default function CreateTaskPage() {
               rows={3}
               className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:border-[#8B5CF6]/50 focus:bg-white/10 transition-colors resize-none font-sans text-sm"
             />
+          </div>
+
+          <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-[#8B5CF6]/10 border border-[#8B5CF6]/40 flex items-center justify-center shrink-0 text-[#8B5CF6] text-sm font-bold">
+                {getTaskTemplate(taskTemplate).shortLabel.slice(0, 1)}
+              </div>
+              <div>
+                <p className="text-sm text-white font-semibold">{getTaskTemplate(taskTemplate).label} evidence profile</p>
+                <p className="text-xs text-white/55 mt-1 leading-relaxed">{getTaskTemplate(taskTemplate).evidence}</p>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -187,12 +235,31 @@ export default function CreateTaskPage() {
             </div>
           </div>
 
+          <div>
+            <label className="block text-xs text-white/40 uppercase tracking-wider mb-2 font-semibold font-sans">ETH Testnet Rail</label>
+            <select
+              value={payoutChainId}
+              onChange={e => setPayoutChainId(e.target.value)}
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:border-[#8B5CF6]/50 focus:bg-white/10 transition-colors font-sans text-sm"
+            >
+              {PAYOUT_NETWORKS.map((network) => (
+                <option className="bg-[#111827] text-white" key={network.chainId} value={network.chainId}>
+                  {network.name} — {network.nativeToken} testnet
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-white/40 mt-2 leading-relaxed">
+              GenLayer still performs the AI consensus and canonical escrow settlement. The selected ETH testnet rail is recorded on-chain so tasks are no longer generic or single-network.
+            </p>
+          </div>
+
           <div className="flex items-start gap-3 px-4 py-3 bg-[#0ea5e9]/5 border border-[#0ea5e9]/20 rounded-xl">
             <svg className="w-4 h-4 text-[#0ea5e9] mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
             </svg>
             <p className="text-xs text-white/60 leading-relaxed">
               The bounty is locked in the TaskManager contract. It is paid once to the first submission reaching the winning score, or returned after the deadline and 24-hour settlement window.
+              The selected review template tells validators which evidence to require.
             </p>
           </div>
 

@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import json
 
 
-CONTRACT_VERSION = "4.1.0"
+CONTRACT_VERSION = "4.2.0"
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
 TASK_OPEN = "open"
@@ -223,6 +223,11 @@ def build_evaluation_prompt(
     task_title: str,
     task_description: str,
     task_criteria: str,
+    task_template: str,
+    template_label: str,
+    evidence_requirements: str,
+    review_focus: str,
+    template_risk_flags: str,
     reward_points: int,
     payout_threshold: int,
     work_url: str,
@@ -234,6 +239,10 @@ def build_evaluation_prompt(
         "Evaluate the submitted work against the task criteria.\n\n"
         f"Task Title: {task_title}\n"
         f"Task Description: {task_description}\n"
+        f"Task Template: {template_label} ({task_template})\n"
+        f"Required Evidence for This Template: {evidence_requirements}\n"
+        f"Review Focus for This Template: {review_focus}\n"
+        f"Template-Specific Risk Flags to Consider: {template_risk_flags}\n"
         f"Evaluation Criteria: {task_criteria}\n"
         f"Maximum Reward Points: {reward_points}\n"
         f"Exact Payout Threshold: {payout_threshold}/100\n\n"
@@ -244,6 +253,8 @@ def build_evaluation_prompt(
         "- Base your evaluation primarily on the fetched content, not just the description.\n"
         "- If the URL could not be fetched or content is empty, penalize heavily (score <= 30).\n"
         "- If the fetched evidence is the wrong artifact for the requested task, score 0.\n"
+        "- Apply the task template strictly; do not evaluate a code task like a content task, or a community task like a research task.\n"
+        "- If required evidence for the selected template is missing, reduce the score and add a matching risk flag.\n"
         "- An accessible URL alone proves nothing; score only factual evidence required by the criteria.\n"
         "- If the fetched content only partially matches the task criteria, score proportionally.\n"
         "- If the fetched content matches the description and satisfies the criteria, reward accordingly.\n"
@@ -269,6 +280,11 @@ def smart_evaluate_submission(
     task_title: str,
     task_description: str,
     task_criteria: str,
+    task_template: str,
+    template_label: str,
+    evidence_requirements: str,
+    review_focus: str,
+    template_risk_flags: str,
     reward_points: int,
     payout_threshold: int,
     work_url: str,
@@ -293,6 +309,11 @@ def smart_evaluate_submission(
                 task_title,
                 task_description,
                 task_criteria,
+                task_template,
+                template_label,
+                evidence_requirements,
+                review_focus,
+                template_risk_flags,
                 reward_points,
                 payout_threshold,
                 work_url,
@@ -826,6 +847,26 @@ class ProofOfImpact(gl.Contract):
         task_title = str(task_data["title"])
         task_description = str(task_data["description"])
         task_criteria = str(task_data["criteria"])
+        task_template = str(task_data.get("task_template", "code"))
+        template_label = str(task_data.get("template_label", "Code delivery"))
+        evidence_requirements = str(
+            task_data.get(
+                "evidence_requirements",
+                "Repository URL, commits or release notes, tests, documentation, and a short delivery summary.",
+            )
+        )
+        review_focus = str(
+            task_data.get(
+                "review_focus",
+                "Correctness, runnable implementation, tests, maintainability, and alignment with the brief.",
+            )
+        )
+        template_risk_flags = str(
+            task_data.get(
+                "template_risk_flags",
+                "placeholder repository, missing tests, copied code, broken build, incomplete scope",
+            )
+        )
         work_url = str(sub_data["work_url"])
         work_description = str(sub_data["description"])
         task_reward = int(task_data["reward_points"])
@@ -835,6 +876,11 @@ class ProofOfImpact(gl.Contract):
             task_title,
             task_description,
             task_criteria,
+            task_template,
+            template_label,
+            evidence_requirements,
+            review_focus,
+            template_risk_flags,
             task_reward,
             payout_threshold,
             work_url,
